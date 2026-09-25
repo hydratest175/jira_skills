@@ -1,0 +1,87 @@
+"""Safe, actionable errors for Jira tools. Never include upstream bodies."""
+
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
+from math import ceil
+
+import httpx
+from fastmcp.exceptions import ToolError
+
+from app.jira_models import JiraError
+
+
+class JiraToolError(ToolError):
+    """JSON error text preserved by FastMCP, including with error masking."""
+
+    def __init__(self, error: JiraError) -> None:
+        self.error = error
+        super().__init__(error.model_dump_json())
+
+
+def _retry_after(value: str | None) -> int | None:
+    if not value:
+        return None
+    try:
+        return max(0, int(value))
+    except ValueError:
+        try:
+            date = parsedate_to_datetime(value)
+            if date.tzinfo is None:
+                date = date.replace(tzinfo=UTC)
+            return max(0, ceil((date - datetime.now(UTC)).total_seconds()))
+        except ValueError, TypeError, OverflowError:
+            return None
+
+
+def upstream_error(exc: Exception, operation: str, instance_url: str) -> JiraError:
+    error = JiraError(
+        code="INTERNAL_ERROR",
+        message="The Jira tool could not process the response.",
+        operation=operation,
+        instance_url=instance_url,
+    )
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code
+        error.http_status = status
+        if status == 400:
+            error.code = "INVALID_REQUEST"
+            error.message = (
+                "Jira rejected the request. Check filters and JQL against this instance."
+            )
+        elif status == 401:
+            error.code = "AUTHENTICATION_FAILED"
+            error.message = "Jira rejected the connector credentials. Update the connector."
+        elif status == 403:
+            error.code = "FORBIDDEN"
+            error.message = "The connected Jira account cannot access this resource."
+        elif status == 404:
+            error.code = "NOT_FOUND_OR_INACCESSIBLE"
+            error.message = (
+                "The resource was not found or is not visible. For boards/sprints, "
+                "also verify that Jira Software Agile API is available."
+            )
+        elif status == 429:
+            error.code = "RATE_LIMITED"
+            error.message = "Jira rate limit reached. Retry later."
+            error.retryable = True
+        elif status >= 500:
+            error.code = "UPSTREAM_UNAVAILABLE"
+            error.message = "Jira is temporarily unavailable."
+            error.retryable = True
+        else:
+            error.code = "INVALID_REQUEST"
+            error.message = "Jira returned an unexpected HTTP status."
+        if error.retryable:
+            error.retry_after_seconds = _retry_after(exc.response.headers.get("Retry-After"))
+    elif isinstance(exc, httpx.TimeoutException):
+        error.code = "TIMEOUT"
+        error.message = "The Jira request timed out. Retry with a smaller scope or later."
+        error.retryable = True
+    elif isinstance(exc, httpx.RequestError):
+        error.code = "UPSTREAM_UNAVAILABLE"
+        error.message = "The Jira instance could not be reached."
+        error.retryable = True
+    elif isinstance(exc, (ValueError, TypeError, KeyError, AttributeError)):
+        error.code = "INVALID_RESPONSE"
+        error.message = "Unexpected Jira response format. Verify the instance API compatibility."
+    return error
