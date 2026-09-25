@@ -1,0 +1,196 @@
+"""Typed read-only Jira results for MCP agents; no credentials in output models."""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+
+def fetched_now() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+type JiraDetailLevel = Literal["compact", "standard", "full"]
+type JiraErrorCode = Literal[
+    "INVALID_INPUT",
+    "INVALID_JQL",
+    "INVALID_REQUEST",
+    "AUTHENTICATION_FAILED",
+    "FORBIDDEN",
+    "NOT_FOUND_OR_INACCESSIBLE",
+    "RATE_LIMITED",
+    "TIMEOUT",
+    "UPSTREAM_UNAVAILABLE",
+    "INVALID_RESPONSE",
+    "INTERNAL_ERROR",
+    "CONNECTOR_UNAVAILABLE",
+    "UNKNOWN_INSTANCE",
+    "AMBIGUOUS_INSTANCE",
+]
+
+
+class JiraError(BaseModel):
+    code: JiraErrorCode
+    message: str
+    operation: str
+    instance_url: str = ""
+    http_status: int | None = None
+    retryable: bool = False
+    retry_after_seconds: int | None = None
+
+
+class JiraProject(BaseModel):
+    instance_url: str
+    key: str
+    name: str
+    url: str = ""
+
+
+class JiraComment(BaseModel):
+    author: str
+    body: str
+    created: str
+    id: str = ""
+    updated: str = ""
+
+
+class JiraIssueSummary(BaseModel):
+    instance_url: str
+    key: str
+    summary: str
+    url: str
+    project: str = ""
+    status: str = ""
+    priority: str = ""
+    assignee: str = ""
+    type: str = ""
+    updated: str = ""
+    labels: list[str] = Field(default_factory=list)
+    components: list[str] = Field(default_factory=list)
+
+
+class JiraSearchIssue(JiraIssueSummary):
+    """Full search mode adds selected detail fields, never comments."""
+
+    description: str | None = None
+    description_length: int | None = None
+    description_truncated: bool = False
+    reporter: str | None = None
+    created: str | None = None
+    due_date: str | None = None
+    resolution: str | None = None
+    fix_versions: list[str] | None = None
+
+
+class JiraIssueLink(BaseModel):
+    type: str
+    direction: Literal["inward", "outward"]
+    relationship: str
+    issue: JiraIssueSummary
+
+
+class JiraIssue(BaseModel):
+    instance_url: str
+    key: str
+    project: str
+    summary: str
+    description: str
+    status: str
+    priority: str
+    assignee: str
+    reporter: str
+    type: str
+    labels: list[str]
+    created: str
+    updated: str
+    comments: list[JiraComment]
+    url: str = ""
+    due_date: str = ""
+    resolution: str = ""
+    components: list[str] = Field(default_factory=list)
+    fix_versions: list[str] = Field(default_factory=list)
+    parent: JiraIssueSummary | None = None
+    subtasks: list[JiraIssueSummary] = Field(default_factory=list)
+    links: list[JiraIssueLink] = Field(default_factory=list)
+    comments_total: int | None = None
+    comments_complete: bool | None = None
+    comments_included: bool = True
+    description_length: int | None = None
+    description_truncated: bool = False
+
+
+class JiraPageMetadata(BaseModel):
+    """A single live page. complete means whole collection, not just this page."""
+
+    instance_url: str
+    start_at: int
+    max_results: int
+    returned_count: int
+    total: int | None = None
+    next_start_at: int | None = None
+    status: Literal["ok", "error"] = "ok"
+    error: JiraError | None = None
+    complete: bool = False
+    fetched_at: str = Field(default_factory=fetched_now)
+
+
+class JiraIssueSearchPage(JiraPageMetadata):
+    issues: list[JiraSearchIssue] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    detail_level: JiraDetailLevel = "standard"
+    fields_requested: list[str] = Field(default_factory=list)
+    effective_jql: str = ""
+    content_truncated: bool = False
+    sprint_id: int | None = None
+
+
+class JiraCommentPage(JiraPageMetadata):
+    issue_key: str
+    comments: list[JiraComment] = Field(default_factory=list)
+
+
+class JiraBoard(BaseModel):
+    instance_url: str
+    id: int
+    name: str
+    type: str
+
+
+class JiraBoardPage(JiraPageMetadata):
+    boards: list[JiraBoard] = Field(default_factory=list)
+
+
+class JiraSprint(BaseModel):
+    instance_url: str
+    id: int
+    name: str
+    state: str
+    goal: str = ""
+    start_date: str = ""
+    end_date: str = ""
+    complete_date: str = ""
+    origin_board_id: int | None = None
+
+
+class JiraSprintPage(JiraPageMetadata):
+    board_id: int
+    sprints: list[JiraSprint] = Field(default_factory=list)
+
+
+class JiraBatchItem(BaseModel):
+    requested_key: str
+    status: Literal["ok", "error"]
+    issue: JiraIssue | None = None
+    error: JiraError | None = None
+
+
+class JiraBatchResult(BaseModel):
+    instance_url: str
+    fetched_at: str = Field(default_factory=fetched_now)
+    items: list[JiraBatchItem]
+    success_count: int
+    failure_count: int
+    complete: bool
+    content_truncated: bool
