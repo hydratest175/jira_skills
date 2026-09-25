@@ -1,0 +1,199 @@
+"""Validated Jira and GitLab inputs. GitLab behavior is unchanged."""
+
+from __future__ import annotations
+
+from enum import StrEnum
+from typing import Self
+
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from app.jira_models import JiraDetailLevel
+
+
+def _normalize_single_line_text(value: str) -> str:
+    """Preserved normalization helper for existing GitLab inputs."""
+    return " ".join(value.strip().split())
+
+
+class JiraInstanceInput(BaseModel):
+    """Select an existing connector, never an arbitrary HTTP destination."""
+
+    instance_url: str = Field(default="", max_length=2048)
+
+    @field_validator("instance_url", mode="before")
+    @classmethod
+    def trim_instance_url(cls, value: object) -> object:
+        return value.strip().rstrip("/") if isinstance(value, str) else value
+
+
+class JiraPageInput(JiraInstanceInput):
+    start_at: int = Field(default=0, ge=0)
+    max_results: int = Field(default=50, ge=1, le=100)
+
+
+class JiraIssueSearchInput(JiraPageInput):
+    """Raw JQL takes precedence, then issue_key, then structured filters."""
+
+    issue_key: str = Field(default="", max_length=32, pattern=r"^(?:[A-Z][A-Z0-9_]*-[1-9][0-9]*)?$")
+    project: str = Field(default="", max_length=32, pattern=r"^(?:[A-Z][A-Z0-9_]*)?$")
+    status: str = Field(default="", max_length=64)
+    sprint: str = Field(default="", max_length=128)
+    assignee: str = Field(default="", max_length=128)
+    reporter: str = Field(default="", max_length=128)
+    issue_type: str = Field(default="", max_length=64)
+    priority: str = Field(default="", max_length=64)
+    labels: str = Field(default="", max_length=256)
+    fix_version: str = Field(default="", max_length=128)
+    component: str = Field(default="", max_length=128)
+    query: str = Field(default="", max_length=200)
+    jql: str = Field(default="", max_length=2000)
+    detail_level: JiraDetailLevel = "standard"
+    description_limit: int = Field(default=2000, ge=200, le=8000)
+
+    @model_validator(mode="after")
+    def bound_full_search(self) -> Self:
+        if self.detail_level == "full" and self.max_results > 20:
+            raise ValueError("Full detail requires max_results <= 20")
+        return self
+
+    @field_validator("issue_key", "project", mode="before")
+    @classmethod
+    def normalize_uppercase_identifiers(cls, value: object) -> object:
+        return value.strip().upper() if isinstance(value, str) else value
+
+    @field_validator(
+        "status",
+        "sprint",
+        "assignee",
+        "reporter",
+        "issue_type",
+        "priority",
+        "labels",
+        "fix_version",
+        "component",
+        "query",
+        "jql",
+        mode="before",
+    )
+    @classmethod
+    def trim_text(cls, value: object) -> object:
+        # Preserve whitespace within quoted JQL strings and free-text expressions.
+        return value.strip() if isinstance(value, str) else value
+
+
+class JiraIssueKeyInput(JiraInstanceInput):
+    issue_key: str = Field(
+        min_length=1,
+        max_length=32,
+        pattern=r"^[A-Z][A-Z0-9_]*-[1-9][0-9]*$",
+    )
+
+    @field_validator("issue_key", mode="before")
+    @classmethod
+    def normalize_issue_key(cls, value: object) -> object:
+        return value.strip().upper() if isinstance(value, str) else value
+
+
+class JiraBatchInput(JiraInstanceInput):
+    issue_keys: list[str] = Field(min_length=1, max_length=20)
+    description_limit: int = Field(default=2000, ge=200, le=8000)
+
+    @field_validator("issue_keys")
+    @classmethod
+    def normalize_keys(cls, values: list[str]) -> list[str]:
+        normalized = [JiraIssueKeyInput(issue_key=value).issue_key for value in values]
+        return list(dict.fromkeys(normalized))
+
+
+class JiraBoardListInput(JiraPageInput):
+    project: str = Field(default="", max_length=32, pattern=r"^(?:[A-Z][A-Z0-9_]*)?$")
+    name: str = Field(default="", max_length=128)
+    board_type: str = Field(default="", pattern=r"^(?:scrum|kanban)?$")
+
+    @field_validator("project", mode="before")
+    @classmethod
+    def normalize_project(cls, value: object) -> object:
+        return value.strip().upper() if isinstance(value, str) else value
+
+    @field_validator("name", "board_type", mode="before")
+    @classmethod
+    def trim_fields(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+
+class JiraSprintListInput(JiraPageInput):
+    board_id: int = Field(gt=0)
+    state: str = Field(default="", max_length=32)
+
+    @field_validator("state", mode="before")
+    @classmethod
+    def normalize_state(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        states = list(dict.fromkeys(s.strip().lower() for s in value.split(",") if s.strip()))
+        if any(s not in {"active", "future", "closed"} for s in states):
+            raise ValueError("Sprint states must be active, future or closed")
+        return ",".join(states)
+
+
+class JiraSprintIssuesInput(JiraPageInput):
+    sprint_id: int = Field(gt=0)
+    jql: str = Field(default="", max_length=2000)
+    detail_level: JiraDetailLevel = "standard"
+    description_limit: int = Field(default=2000, ge=200, le=8000)
+
+    @field_validator("jql", mode="before")
+    @classmethod
+    def trim_jql(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def bound_full_search(self) -> Self:
+        if self.detail_level == "full" and self.max_results > 20:
+            raise ValueError("Full detail requires max_results <= 20")
+        return self
+
+
+class GitLabMergeRequestState(StrEnum):
+    OPENED = "opened"
+    CLOSED = "closed"
+    LOCKED = "locked"
+    MERGED = "merged"
+
+
+class GitLabIssueState(StrEnum):
+    OPENED = "opened"
+    CLOSED = "closed"
+    ALL = "all"
+
+
+class GitLabProjectInput(BaseModel):
+    project: str = Field(min_length=1, max_length=255)
+
+    @field_validator("project")
+    @classmethod
+    def normalize_project(cls, value: str) -> str:
+        return _normalize_single_line_text(value)
+
+
+class GitLabMergeRequestListInput(GitLabProjectInput):
+    state: GitLabMergeRequestState = GitLabMergeRequestState.OPENED
+    author: str = Field(default="", max_length=100)
+    query: str = Field(default="", max_length=200)
+
+    @field_validator("author", "query")
+    @classmethod
+    def trim_text(cls, value: str) -> str:
+        return _normalize_single_line_text(value)
+
+
+class GitLabIssueListInput(GitLabProjectInput):
+    state: GitLabIssueState = GitLabIssueState.OPENED
+    labels: str = Field(default="", max_length=200)
+    assignee: str = Field(default="", max_length=100)
+    query: str = Field(default="", max_length=200)
+
+    @field_validator("labels", "query")
+    @classmethod
+    def trim_text(cls, value: str) -> str:
+        return _normalize_single_line_text(value)
