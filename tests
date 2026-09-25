@@ -1,0 +1,451 @@
+"""Behavior tests using real HTTPX MockTransport and FastMCP registration.
+
+Run inside lea-alm-mcp after installing the replacement app files.
+Connector resolution is mocked; no real credentials or network are used.
+"""
+
+import asyncio
+import json
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
+from types import SimpleNamespace
+from typing import Any
+
+import httpx
+import pytest
+from app import jira
+from app.errors import (
+    ConnectorResolutionError,
+    VaultAuthError,
+    VaultSecretReadError,
+)
+from app.jira_client import jira_post, parse_issue, parse_page_metadata
+from app.jira_errors import JiraToolError
+from app.tool_inputs import (
+    GitLabIssueListInput,
+    GitLabMergeRequestListInput,
+    JiraIssueKeyInput,
+    JiraIssueSearchInput,
+    JiraPageInput,
+)
+from fastmcp import Client, FastMCP
+from fastmcp.tools import FunctionTool
+from pydantic import ValidationError
+
+INSTANCE = "https://jira.example.test/context"
+SECOND = "https://other.example.test"
+
+
+def issue(key: str = "DEP-1", **fields: Any) -> dict[str, Any]:
+    return {"key": key, "fields": {"summary": "Test ticket", **fields}}
+
+
+async def invoke(
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    handler: Callable[[httpx.Request], httpx.Response],
+    *,
+    connectors: list[tuple[str, str]] | None = None,
+    resolution_error: ConnectorResolutionError | None = None,
+    **kwargs: Any,
+) -> Any:
+    async def resolve(connector_type: str, client: httpx.AsyncClient) -> list[tuple[str, str]]:
+        assert connector_type == "jira"
+        if resolution_error is not None:
+            raise resolution_error
+        return connectors if connectors is not None else [(INSTANCE, "secret-token")]
+
+    monkeypatch.setattr(jira, "get_all_connectors_for_type", resolve)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        ctx = SimpleNamespace(
+            lifespan_context={
+                "http_clients": SimpleNamespace(get_async_client=lambda: client),
+            }
+        )
+        mcp = FastMCP("Jira test")
+        jira.register_jira_tools(mcp)
+        tool = await mcp.get_tool(name)
+        assert isinstance(tool, FunctionTool)
+        return await tool.fn(ctx=ctx, **kwargs)
+
+
+@pytest.mark.parametrize(
+    "value", [" ", "../DEP-1", "DEP-1/../../project", "DEP-1 OR key=DEP-2", "DEP 1", "DEP-0"]
+)
+def test_invalid_lookup_keys(value: str) -> None:
+    with pytest.raises(ValidationError):
+        JiraIssueKeyInput(issue_key=value)
+
+
+def test_normalization_and_raw_jql_preserve_meaning() -> None:
+    assert JiraIssueKeyInput(issue_key=" dep-12 ").issue_key == "DEP-12"
+    raw = 'summary ~ "two  spaces"\nORDER BY updated DESC'
+    search = JiraIssueSearchInput(jql="  " + raw + "  ")
+    assert jira._build_jira_search_jql(search) == raw
+    with pytest.raises(ValidationError):
+        JiraIssueSearchInput(project="DEP OR project=OTHER")
+
+
+def test_jql_quoting_currentuser_and_labels() -> None:
+    query = jira._build_jira_search_jql(
+        JiraIssueSearchInput(
+            project="dep",
+            assignee="currentuser",
+            status='A "quoted" status',
+            labels="one,two",
+        )
+    )
+    assert 'project = "DEP"' in query
+    assert "assignee = currentUser()" in query
+    assert r'status = "A \"quoted\" status"' in query
+    assert 'labels in ("one", "two")' in query
+    assert query.endswith("ORDER BY updated DESC, key ASC")
+
+
+@pytest.mark.parametrize("args", [{"start_at": -1}, {"max_results": 0}, {"max_results": 101}])
+def test_page_bounds(args: dict[str, int]) -> None:
+    with pytest.raises(ValidationError):
+        JiraPageInput(**args)
+
+
+def test_gitlab_inputs_keep_behavior() -> None:
+    assert GitLabMergeRequestListInput(project=" group/repo ", query="a  b").query == "a b"
+    assert GitLabIssueListInput(project=" group/repo ", labels="a  b").labels == "a b"
+    assert GitLabIssueListInput(project="x", assignee=" a ").assignee == " a "
+
+
+def test_enriched_search_and_per_instance_paging(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        assert req.method == "POST"
+        assert req.url.path.endswith("/rest/api/2/search")
+        body = json.loads(req.content)
+        assert body["startAt"] == 2
+        assert body["maxResults"] == 50
+        assert "status" in body["fields"] and "project" in body["fields"]
+        seen.append(req.url.host)
+        return httpx.Response(
+            200,
+            json={
+                "startAt": 2,
+                "maxResults": 1,
+                "total": 5,
+                "issues": [issue(status={"name": "In progress"}, assignee=None)],
+            },
+        )
+
+    pages = asyncio.run(
+        invoke(
+            monkeypatch,
+            "jira_search_issues_page",
+            handler,
+            connectors=[(INSTANCE, "one"), (SECOND, "two")],
+            search_input=JiraIssueSearchInput(project="DEP", start_at=2),
+        )
+    )
+    assert len(seen) == len(pages) == 2
+    assert [p.instance_url for p in pages] == [INSTANCE, SECOND]
+    assert all(p.next_start_at == 3 and p.total == 5 for p in pages)
+    assert pages[0].issues[0].status == "In progress"
+    assert pages[0].issues[0].assignee == ""
+
+
+def test_flat_search_still_returns_issues(monkeypatch: pytest.MonkeyPatch) -> None:
+    result = asyncio.run(
+        invoke(
+            monkeypatch,
+            "jira_search_issues",
+            lambda _req: httpx.Response(
+                200,
+                json={"issues": [issue()], "startAt": 0, "maxResults": 50, "total": 1},
+            ),
+        )
+    )
+    assert isinstance(result, list) and result[0].key == "DEP-1"
+
+
+def test_empty_and_unknown_total_pages() -> None:
+    assert parse_page_metadata(INSTANCE, {}, 1, 0, 50)["next_start_at"] == 1
+    assert parse_page_metadata(INSTANCE, {}, 0, 1, 50)["next_start_at"] is None
+    assert parse_page_metadata(INSTANCE, {"total": 2}, 1, 1, 50)["next_start_at"] is None
+    with pytest.raises(ValueError):
+        parse_page_metadata(INSTANCE, {"startAt": 0}, 1, 5, 50)
+
+
+def test_complete_issue_fields_and_relationship_direction(monkeypatch: pytest.MonkeyPatch) -> None:
+    def handler(req: httpx.Request) -> httpx.Response:
+        requested = req.url.params["fields"].split(",")
+        assert {"project", "subtasks", "issuelinks", "parent"} <= set(requested)
+        return httpx.Response(
+            200,
+            json=issue(
+                project={"key": "DEP"},
+                parent=issue("DEP-2"),
+                subtasks=[issue("DEP-3")],
+                issuelinks=[
+                    {
+                        "type": {"name": "Blocks", "outward": "blocks"},
+                        "outwardIssue": issue("DEP-4"),
+                    },
+                    {
+                        "type": {"name": "Blocks", "inward": "is blocked by"},
+                        "inwardIssue": issue("DEP-5"),
+                    },
+                ],
+                comment={"startAt": 0, "total": 4, "comments": [{"id": "1", "body": "First"}]},
+            ),
+        )
+
+    result = asyncio.run(invoke(monkeypatch, "jira_get_issue", handler, issue_key="dep-1"))[0]
+    assert result.project == "DEP"
+    assert result.parent.key == "DEP-2"
+    assert result.subtasks[0].key == "DEP-3"
+    assert [(link.direction, link.relationship) for link in result.links] == [
+        ("outward", "blocks"),
+        ("inward", "is blocked by"),
+    ]
+    assert result.comments_total == 4 and result.comments_complete is False
+    assert result.comments[0].body == "First"
+
+
+def test_unknown_comment_completeness_and_rich_text_mismatch() -> None:
+    assert parse_issue(INSTANCE, issue()).comments_complete is None
+    with pytest.raises(ValueError, match="text format"):
+        parse_issue(INSTANCE, issue(description={"type": "doc", "content": []}))
+
+
+def test_comments_use_requested_offset_and_stop_at_end(monkeypatch: pytest.MonkeyPatch) -> None:
+    def handler(req: httpx.Request) -> httpx.Response:
+        assert req.method == "GET" and req.url.path.endswith("/issue/DEP-1/comment")
+        assert req.url.params["startAt"] == "2" and req.url.params["orderBy"] == "created"
+        return httpx.Response(
+            200,
+            json={
+                "startAt": 2,
+                "maxResults": 50,
+                "total": 3,
+                "comments": [{"id": "3", "body": "Last", "author": None}],
+            },
+        )
+
+    pages = asyncio.run(
+        invoke(monkeypatch, "jira_list_comments", handler, issue_key="DEP-1", start_at=2)
+    )
+    assert pages[0].next_start_at is None and pages[0].comments[0].body == "Last"
+
+
+@pytest.mark.parametrize("status", [401, 403, 429, 500])
+def test_failures_are_not_reported_as_missing(monkeypatch: pytest.MonkeyPatch, status: int) -> None:
+    with pytest.raises(JiraToolError):
+        asyncio.run(
+            invoke(
+                monkeypatch,
+                "jira_get_issue",
+                lambda _req: httpx.Response(status),
+                issue_key="DEP-1",
+            )
+        )
+
+
+def test_only_404_means_not_visible(monkeypatch: pytest.MonkeyPatch) -> None:
+    with pytest.raises(JiraToolError):
+        asyncio.run(
+            invoke(
+                monkeypatch, "jira_get_issue", lambda _req: httpx.Response(404), issue_key="DEP-1"
+            )
+        )
+
+
+def test_404_on_one_instance_can_find_issue_on_another(monkeypatch: pytest.MonkeyPatch) -> None:
+    def handler(req: httpx.Request) -> httpx.Response:
+        return (
+            httpx.Response(404)
+            if req.url.host == "jira.example.test"
+            else httpx.Response(200, json=issue())
+        )
+
+    result = asyncio.run(
+        invoke(
+            monkeypatch,
+            "jira_get_issue",
+            handler,
+            connectors=[(INSTANCE, "one"), (SECOND, "two")],
+            issue_key="DEP-1",
+        )
+    )
+    assert len(result) == 1 and result[0].instance_url == SECOND
+
+
+def test_partial_failure_is_not_silently_returned(monkeypatch: pytest.MonkeyPatch) -> None:
+    def handler(req: httpx.Request) -> httpx.Response:
+        return (
+            httpx.Response(200, json=issue())
+            if req.url.host == "jira.example.test"
+            else httpx.Response(503)
+        )
+
+    with pytest.raises(JiraToolError):
+        asyncio.run(
+            invoke(
+                monkeypatch,
+                "jira_get_issue",
+                handler,
+                connectors=[(INSTANCE, "one"), (SECOND, "two")],
+                issue_key="DEP-1",
+            )
+        )
+
+
+def test_connector_selection_does_not_send_token_to_unknown_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def never(req: httpx.Request) -> httpx.Response:
+        pytest.fail("An unknown instance must not receive an HTTP request")
+
+    with pytest.raises(JiraToolError):
+        asyncio.run(
+            invoke(
+                monkeypatch,
+                "jira_get_issue",
+                never,
+                issue_key="DEP-1",
+                instance_url="https://unconfigured.example.test",
+            )
+        )
+
+
+def test_selected_connector_only_and_context_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    def handler(req: httpx.Request) -> httpx.Response:
+        assert str(req.url).startswith(INSTANCE + "/rest/api/2/")
+        assert req.headers["authorization"] == "Bearer one"
+        return httpx.Response(200, json=[])
+
+    assert (
+        asyncio.run(
+            invoke(
+                monkeypatch,
+                "jira_list_projects",
+                handler,
+                connectors=[(INSTANCE, "one"), (SECOND, "two")],
+                instance_url=INSTANCE + "/",
+            )
+        )
+        == []
+    )
+
+
+def test_no_connector_is_configuration_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    with pytest.raises(JiraToolError):
+        asyncio.run(
+            invoke(
+                monkeypatch,
+                "jira_get_issue",
+                lambda _req: pytest.fail("No call"),
+                connectors=[],
+                issue_key="DEP-1",
+            )
+        )
+
+
+@pytest.mark.parametrize("failure", ["timeout", "bad_json", "bad_payload"])
+def test_transport_and_payload_errors_are_upstream_failures(
+    monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    def handler(req: httpx.Request) -> httpx.Response:
+        if failure == "timeout":
+            raise httpx.ReadTimeout("timed out", request=req)
+        if failure == "bad_json":
+            return httpx.Response(200, text="not JSON")
+        return httpx.Response(200, json={})
+
+    with pytest.raises(JiraToolError):
+        asyncio.run(invoke(monkeypatch, "jira_get_issue", handler, issue_key="DEP-1"))
+
+
+@pytest.mark.parametrize("error_type", [VaultAuthError, VaultSecretReadError])
+def test_vault_error_categories_are_preserved(
+    monkeypatch: pytest.MonkeyPatch,
+    error_type: type[ConnectorResolutionError],
+) -> None:
+    error = error_type("Test connector failure")
+    with pytest.raises(JiraToolError) as caught:
+        asyncio.run(
+            invoke(
+                monkeypatch,
+                "jira_get_issue",
+                lambda _req: pytest.fail("No Jira request expected"),
+                issue_key="DEP-1",
+                resolution_error=error,
+            )
+        )
+    assert caught.value.error.code == "CONNECTOR_UNAVAILABLE"
+
+
+def test_no_mutation_post_routes() -> None:
+    async def check() -> None:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda _req: pytest.fail("No call"))
+        ) as client:
+            with pytest.raises(ValueError, match="Read-only"):
+                await jira_post(client, INSTANCE, "secret", "/issue", {"fields": {}})
+
+    asyncio.run(check())
+
+
+def test_own_logs_do_not_contain_token_or_search_text(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level("DEBUG", logger="app.jira_client")
+    asyncio.run(
+        invoke(
+            monkeypatch,
+            "jira_search_issues",
+            lambda _req: httpx.Response(200, json={"issues": []}),
+            query="private-search-value",
+        )
+    )
+    own_logs = " ".join(r.getMessage() for r in caplog.records if r.name.startswith("app.jira"))
+    assert "secret-token" not in own_logs and "private-search-value" not in own_logs
+
+
+def test_real_mcp_schema_and_paginated_tool_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def resolve(*args: object) -> list[tuple[str, str]]:
+        return [(INSTANCE, "secret")]
+
+    monkeypatch.setattr(jira, "get_all_connectors_for_type", resolve)
+
+    async def scenario() -> None:
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(
+                lambda _req: httpx.Response(
+                    200,
+                    json={
+                        "startAt": 0,
+                        "maxResults": 50,
+                        "total": 1,
+                        "issues": [issue()],
+                    },
+                )
+            )
+        ) as http_client:
+
+            @asynccontextmanager
+            async def lifespan(server: FastMCP) -> AsyncIterator[dict[str, Any]]:
+                yield {"http_clients": SimpleNamespace(get_async_client=lambda: http_client)}
+
+            server = FastMCP("Jira protocol test", lifespan=lifespan)
+            jira.register_jira_tools(server)
+            async with Client(server) as client:
+                tools = await client.list_tools()
+                assert len(tools) == 9
+                assert all(
+                    tool.annotations is not None and tool.annotations.readOnlyHint for tool in tools
+                )
+                result = await client.call_tool(
+                    "jira_search_issues_page", {"search_input": {"project": "dep"}}
+                )
+                assert not result.is_error
+                assert "DEP-1" in str(result)
+
+    asyncio.run(scenario())
