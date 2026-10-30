@@ -1,281 +1,378 @@
-1. Requirements & Technical Constraints
+TASK: Engineering Companion — Architecture Discovery & Prototype Preparation
 
-Engineering Companion × LMC × Orq.ai
+YOUR ROLE
 
-1.1. Contexte et objectifs
+You are acting as a Senior Software Architect and AI Engineer working on the Engineering Companion project.
 
-L’intégration entre LMC (Landing Management Console), Engineering Companion (EC), Orq.ai et l’Engineering Agentic Library (EAL) vise à fournir une plateforme d’assistants IA personnalisables, sécurisés et accessibles dans le contexte des projets d’ingénierie.
+Your objective is to analyze the existing codebases and identify the best way to implement a new architecture integrating:
 
-LMC constitue la source de vérité pour la gestion des projets, des utilisateurs, des permissions et des connecteurs autorisés.
+* Engineering Companion (EC)
+* LEA Management Center (LMC)
+* Orq.ai
+* Engineering Agentic Library (EAL)
+* MCP servers for Jira and GitLab
 
-Engineering Companion fournit l’interface utilisateur et assure l’application des règles d’autorisation, tandis qu’Orq.ai prend en charge l’orchestration et l’exécution des agents IA.
+Your analysis must be based on the actual implementation, existing dependencies, documentation and available API specifications.
 
-L’EAL permet aux utilisateurs de sélectionner des Skills pour personnaliser les capacités de leurs assistants.
+IMPORTANT: THIS IS A READ-ONLY ANALYSIS PHASE.
 
-L’architecture doit répondre à plusieurs objectifs :
+Do not modify code, create files, update dependencies, execute migrations, commit changes or perform write operations against external systems.
 
-* Personnalisation : permettre à chaque utilisateur de disposer d’un environnement adapté à ses projets, modèles autorisés, Skills et documents.
-* Sécurité : garantir l’isolation des utilisateurs et des projets, ainsi que le respect des autorisations définies dans LMC.
-* Maintenabilité : faciliter les évolutions des templates d’agents, des Skills et des configurations, sans nécessiter de mises à jour massives et complexes.
-* Scalabilité : permettre le déploiement à grande échelle pour plusieurs milliers d’utilisateurs.
-* Observabilité : assurer un suivi précis des consommations, coûts, performances et erreurs.
-* Gouvernance financière : appliquer des budgets au niveau des projets et des utilisateurs.
-* Automatisation : limiter les opérations manuelles de provisioning, de synchronisation et de nettoyage.
+Do not execute commands that modify the environment.
 
-Les exigences ci-dessous sont classées selon leur statut :
-
-* Mandatory : besoin ou contrainte déjà exprimé comme obligatoire.
-* Current direction : orientation technique actuellement privilégiée, mais susceptible d’évoluer.
-* POC : hypothèse retenue pour les premiers tests.
-* To define : exigence ou comportement nécessitant une décision complémentaire.
+Ask clarification questions whenever important information cannot be determined from the repositories.
 
 ⸻
 
-1.2. Functional Requirements
+1. PROJECT CONTEXT
 
-Ces exigences décrivent les fonctionnalités attendues du point de vue des managers et des utilisateurs d’Engineering Companion.
+Engineering Companion is an enterprise AI assistant platform.
 
-ID	Requirement	Description	Status
-FR-01	Project creation	Un manager doit pouvoir créer un projet dans LMC.	Mandatory
-FR-02	User assignment	Un manager doit pouvoir associer plusieurs utilisateurs à un projet LMC.	Mandatory
-FR-03	User permissions	LMC doit définir les permissions des utilisateurs dans chaque projet.	Mandatory
-FR-04	Connector assignment	Un projet LMC doit pouvoir être associé à des connecteurs autorisés, notamment Jira et GitLab.	Mandatory
-FR-05	Model authorization	LMC doit permettre de définir les modèles LLM accessibles à chaque utilisateur dans son contexte projet.	Mandatory
-FR-06	Project visibility	Un utilisateur doit uniquement voir les projets LMC auxquels il est autorisé à accéder.	Mandatory
-FR-07	Project selection	Un utilisateur doit pouvoir sélectionner son projet actif dans Engineering Companion.	Mandatory
-FR-08	Project-scoped execution	Toutes les opérations des agents doivent s’effectuer dans le contexte du projet LMC sélectionné.	Mandatory
-FR-09	Model selection	Un utilisateur doit pouvoir sélectionner un modèle LLM parmi ceux autorisés dans son projet.	Mandatory
-FR-10	Model switching	Un utilisateur doit pouvoir changer de modèle depuis l’interface Engineering Companion.	Mandatory
-FR-11	Skills marketplace	Un utilisateur doit pouvoir parcourir l’EAL et sélectionner des Skills pour personnaliser son assistant.	Mandatory
-FR-12	Personalized Skills	Les Skills sélectionnés doivent être disponibles pour l’utilisateur dans le contexte du projet concerné.	Mandatory
-FR-13	Skills persistence	Les préférences de Skills doivent être conservées entre les sessions utilisateur.	Mandatory
-FR-14	Personal Knowledge Base	Un utilisateur doit pouvoir ajouter des documents personnels pour enrichir les connaissances de son assistant.	Mandatory
-FR-15	Document persistence	Les documents personnels doivent rester disponibles après déconnexion et reconnexion.	Mandatory
-FR-16	Conversation history	Les conversations doivent être conservées entre les sessions.	Mandatory
-FR-17	Conversation continuity	Un utilisateur doit pouvoir retrouver et poursuivre une conversation précédente, même après renouvellement de son environnement agentique.	Mandatory
-FR-18	Project switching	Un utilisateur doit pouvoir changer de projet sans mélanger les ressources, permissions ou conversations des différents projets.	Mandatory
-FR-19	Access revocation	Lorsqu’un utilisateur perd ses permissions LMC, il doit immédiatement perdre la possibilité d’effectuer de nouvelles opérations non autorisées.	Mandatory
-FR-20	Workspace preparation	Engineering Companion doit pouvoir afficher un état de chargement lorsque l’environnement agentique de l’utilisateur est en cours de préparation.	Current direction
+Its orchestration relies exclusively on Orq.ai managed agents.
+
+The current multi-agent architecture includes:
+
+* Engineering Companion: main orchestrator.
+* Jira Specialist: specialized Jira agent.
+* GitLab Specialist: specialized GitLab agent.
+
+The platform integrates with LMC (LEA Management Center), which manages enterprise projects, users, permissions and connectors.
+
+Users authenticate through the enterprise SSO infrastructure.
+
+The EAL is a marketplace of reusable Skills that users can select to personalize their assistants.
+
+The objective is to provide personalized AI environments while keeping provisioning, maintenance, security and monitoring manageable at enterprise scale.
 
 ⸻
 
-1.3. Architecture & Orq.ai Requirements
+2. TARGET ARCHITECTURE
 
-Ces exigences concernent les composants techniques et leur organisation dans Orq.ai.
+2.1. Project organization
 
-ID	Requirement	Description	Status
-AR-01	Orq.ai orchestration	L’orchestration des agents doit être réalisée uniquement à travers les agents Orq.ai, sans orchestrateur Deep Agent externe.	Mandatory
-AR-02	Project mapping	Un projet Orq.ai doit correspondre à un projet LMC.	Current direction
-AR-03	Orq.ai abstraction	Les utilisateurs finaux ne doivent jamais accéder directement à Orq.ai. La plateforme doit rester entièrement masquée derrière Engineering Companion.	Mandatory
-AR-04	Backend orchestration	Le backend Engineering Companion doit assurer la communication avec les API Orq.ai et sélectionner les ressources autorisées.	Mandatory
-AR-05	User resource organization	Les ressources agentiques personnelles doivent pouvoir être organisées par utilisateur, notamment à l’aide de folders Orq.ai.	Current direction
-AR-06	Personal agent configuration	Chaque utilisateur doit pouvoir disposer de configurations d’agents personnalisées dans chaque projet auquel il appartient.	Mandatory
-AR-07	Multi-agent architecture	L’architecture initiale comprend un orchestrateur Engineering Companion et deux sous-agents spécialisés : Jira Specialist et GitLab Specialist.	Current direction
-AR-08	Preconfigured model agents	Les modèles doivent être sélectionnés à travers des configurations d’agents préconfigurées, plutôt que par modification du modèle via PATCH à chaque changement.	Current direction
-AR-09	Project-specific model IDs	Des configurations de modèles spécifiques aux projets doivent être créées dans Orq.ai, conformément aux exigences de l’équipe IT, même lorsqu’elles utilisent un même LLM sous-jacent.	Mandatory
-AR-10	Sub-agent model configuration	Pour le POC, l’orchestrateur et ses sous-agents doivent utiliser le même modèle LLM.	POC
-AR-11	Independent model configuration	À terme, l’architecture doit permettre d’étudier des modèles différents pour l’orchestrateur et les sous-agents.	To define
-AR-12	Agent configuration management	Les configurations d’agents doivent être définies et administrées de manière centralisée.	Mandatory
-AR-13	Automated resource management	La création, la mise à jour et la suppression des ressources Orq.ai doivent pouvoir être automatisées via API.	Mandatory
+The current architectural decision is:
 
-Important : les folders Orq.ai sont considérés comme des mécanismes d’organisation des ressources, et non comme des frontières de sécurité individuelles.
+One LMC project corresponds to one Orq.ai project.
 
-⸻
+Example:
 
-1.4. Security & Access Control Requirements
+LMC Project A → Orq.ai Project A.
 
-L’isolation des utilisateurs et des projets représente une exigence fondamentale.
+Several users may belong to the same project.
 
-Étant donné que plusieurs utilisateurs peuvent partager un même projet Orq.ai, les contrôles d’autorisation doivent être assurés par Engineering Companion et les services externes concernés.
+Personal agent resources should be organized using user-specific folders or resource paths inside the Orq.ai project.
 
-ID	Requirement	Description	Status
-SR-01	Authentication	L’authentification des utilisateurs doit s’appuyer sur le SSO Keycloak.	Mandatory
-SR-02	LMC as source of truth	LMC doit constituer la référence pour les autorisations des utilisateurs, projets et connecteurs.	Mandatory
-SR-03	Backend authorization	Le backend doit vérifier les permissions utilisateur/projet avant toute opération sensible.	Mandatory
-SR-04	Project isolation	Un utilisateur ne doit jamais pouvoir accéder aux ressources ou données d’un projet LMC non autorisé.	Mandatory
-SR-05	User isolation	Un utilisateur ne doit pas pouvoir accéder aux agents, documents, conversations ou ressources personnelles d’un autre utilisateur sans autorisation explicite.	Mandatory
-SR-06	Model access control	Le backend doit empêcher l’utilisation de modèles non autorisés dans LMC.	Mandatory
-SR-07	Skills access control	Les Skills EAL doivent être disponibles uniquement selon les permissions de l’utilisateur et du projet actif.	Mandatory
-SR-08	MCP authorization	Les serveurs MCP doivent appliquer les permissions LMC lors de l’accès aux ressources Jira, GitLab et aux autres systèmes connectés.	Mandatory
-SR-09	User credentials	Les credentials personnels des connecteurs, notamment les PAT Jira/GitLab, doivent être stockés et utilisés de manière sécurisée.	Mandatory
-SR-10	API key protection	Les clés API Orq.ai et les clés d’administration ne doivent jamais être exposées au frontend ou aux utilisateurs finaux.	Mandatory
-SR-11	Least privilege	Les clés API et comptes techniques doivent disposer des permissions minimales nécessaires à leur fonction.	Mandatory
-SR-12	Knowledge isolation	Les documents personnels et les Knowledge Bases doivent être protégés par des contrôles d’autorisation indépendants de leur organisation en folders.	Mandatory
-SR-13	Revocation enforcement	Les changements de permissions LMC doivent être pris en compte sans attendre une reconnexion ou une opération de provisioning.	Mandatory
-SR-14	Secret protection	Les tokens, clés API, PAT et autres secrets ne doivent pas apparaître dans les prompts, réponses ou logs applicatifs.	Mandatory
+Users must never access Orq.ai directly.
 
-⸻
+All authorization is enforced through the Engineering Companion backend and the appropriate downstream services.
 
-1.5. Resource Provisioning & Lifecycle Requirements
+Orq.ai folders must not be treated as individual security boundaries.
 
-Le provisioning constitue l’un des enjeux principaux de l’architecture.
+2.2. Personal agents
 
-L’objectif est de disposer d’un mécanisme automatisé capable de provisionner les ressources, de gérer leurs évolutions et de limiter les opérations de maintenance.
+Each user should be able to have personalized agents within each LMC project.
 
-ID	Requirement	Description	Status
-PR-01	Project provisioning	La création d’un projet LMC doit permettre la création automatique du projet Orq.ai correspondant.	Mandatory
-PR-02	Project resource initialization	Les ressources communes nécessaires au projet, notamment les configurations de modèles, doivent être initialisées automatiquement.	Mandatory
-PR-03	User identity provisioning	Une Identity Orq.ai doit être créée ou retrouvée pour chaque utilisateur concerné.	Mandatory
-PR-04	On-demand agent provisioning	Les agents personnels doivent pouvoir être provisionnés lors de la première utilisation du projet par l’utilisateur.	Current direction
-PR-05	Model-based provisioning	Le provisioning doit prendre en compte les modèles autorisés à l’utilisateur et créer les configurations d’agents nécessaires.	Mandatory
-PR-06	Skills provisioning	Le provisioning doit récupérer les Skills sélectionnés dans l’EAL et les associer aux agents appropriés.	Mandatory
-PR-07	Template synchronization	Les agents doivent pouvoir bénéficier des dernières versions validées de leurs templates sans nécessiter de maintenance manuelle massive.	Mandatory
-PR-08	Skills synchronization	Les évolutions des Skills EAL doivent pouvoir être répercutées sur les configurations agentiques concernées.	Mandatory
-PR-09	Persistent user data	Les conversations, documents et préférences utilisateur doivent survivre aux opérations de renouvellement ou de suppression des agents.	Mandatory
-PR-10	Resource cleanup	Les ressources personnelles devenues inutiles doivent pouvoir être supprimées sans affecter celles des autres utilisateurs.	Mandatory
-PR-11	Provisioning idempotency	Une opération de provisioning répétée ne doit pas créer de ressources dupliquées ou incohérentes.	Mandatory
-PR-12	Concurrent sessions	Le système doit gérer correctement plusieurs connexions ou opérations simultanées pour un même utilisateur et projet.	Mandatory
-PR-13	Failure recovery	Les échecs partiels de provisioning ou de suppression doivent être détectés et récupérables.	Mandatory
-PR-14	Session lifecycle	Une politique de gestion de la fin de session doit couvrir le logout, le changement de projet et l’inactivité.	Current direction
-PR-15	Environment lifecycle strategy	Le choix entre agents entièrement éphémères et agents persistants avec réconciliation reste à finaliser.	To define
-PR-16	Resource retention	Les règles de conservation et de suppression des agents, conversations, documents et Knowledge Bases doivent être définies.	To define
+The personalized configuration may contain:
 
-Objectif de maintenabilité
+* A common versioned agent template.
+* User-specific Skills from EAL.
+* Authorized tools and connectors.
+* Personal Knowledge Base references.
+* Project-specific configuration.
 
-Le système doit éviter qu’une modification d’un template ou d’un Skill nécessite une intervention manuelle sur l’ensemble des agents personnels existants.
+The initial agent team contains:
 
-Les ressources doivent pouvoir être créées ou synchronisées automatiquement à partir de configurations centralisées et versionnées.
+* Engineering Companion.
+* Jira Specialist.
+* GitLab Specialist.
 
-La manière d’atteindre cet objectif reste ouverte :
+2.3. Model management
 
-* Provisioning entièrement éphémère à chaque session.
-* Provisioning à la demande avec réconciliation des configurations existantes.
-* Approche hybride avec nettoyage des ressources après une période d’inactivité.
+The IT team requires project-specific model configurations/identifiers in Orq.ai.
 
-Ces possibilités seront comparées dans l’analyse architecturale.
+The underlying LLM may be reused across different project-specific configurations.
 
-⸻
+This mechanism has already been tested manually in Orq.ai.
 
-1.6. Monitoring, Observability & Budget Requirements
+Users must be able to select an authorized model from Engineering Companion.
 
-Le monitoring et la gouvernance financière sont des exigences obligatoires.
+We are currently investigating dynamic model selection using Orq.ai AI Gateway Routing Rules.
 
-L’objectif est de permettre un suivi individuel et par projet, indépendamment de la manière dont les agents sont provisionnés.
+The idea is to use request metadata or headers to select the underlying LLM without modifying the agent configuration.
 
-ID	Requirement	Description	Status
-MR-01	User Identity	Chaque utilisateur doit posséder une Identity Orq.ai identifiable de manière stable.	Mandatory
-MR-02	Identity persistence	Une Identity doit pouvoir être réutilisée entre plusieurs sessions et projets.	Mandatory
-MR-03	User budget	Un budget doit être créé pour chaque Identity utilisateur.	Mandatory
-MR-04	Project budget	Un budget doit être créé pour chaque projet Orq.ai correspondant à un projet LMC.	Mandatory
-MR-05	Budget enforcement	Les budgets applicables doivent être pris en compte lors des exécutions afin de contrôler les consommations.	Mandatory
-MR-06	User cost tracking	Le système doit permettre de suivre les consommations et les coûts de chaque utilisateur.	Mandatory
-MR-07	Project cost tracking	Le système doit permettre de suivre les consommations et les coûts globaux de chaque projet LMC.	Mandatory
-MR-08	User-project cost tracking	Il doit être possible de connaître la consommation d’un utilisateur dans un projet spécifique.	Mandatory
-MR-09	Model usage tracking	Le système doit permettre de mesurer la consommation par modèle LLM réellement utilisé.	Mandatory
-MR-10	Agent usage tracking	Le système doit distinguer les consommations de l’orchestrateur et des sous-agents.	Mandatory
-MR-11	Multi-agent cost attribution	Les coûts des sous-agents doivent pouvoir être rattachés à l’utilisateur et au projet ayant initié l’exécution.	Mandatory
-MR-12	Execution observability	Les exécutions doivent être observables à travers des traces, métriques et informations de diagnostic.	Mandatory
-MR-13	Performance monitoring	Le système doit permettre de suivre les latences, erreurs et performances des agents et outils.	Mandatory
-MR-14	Cost reporting	Les données de consommation doivent pouvoir être consolidées pour produire des rapports et tableaux de bord.	Mandatory
-MR-15	Historical monitoring	L’historique nécessaire au reporting doit rester exploitable après la mise à jour ou la suppression de ressources agentiques.	Mandatory
-MR-16	Budget configuration	Les montants, périodes, devises et responsabilités de définition des budgets doivent être précisés.	To define
+This capability has not yet been validated for managed agents.
 
-Granularité de monitoring attendue
+A critical POC must determine whether Routing Rules can affect:
 
-Le système doit au minimum permettre les analyses suivantes :
+1. The internal LLM calls of an Orq.ai managed agent.
+2. The internal LLM calls of its delegated sub-agents.
+3. Concurrent requests selecting different models.
 
-Dimension	Exemple
-Project	Coût total du projet Satellite
-User	Coût total d’Alice
-User + Project	Coût d’Alice dans Satellite
-Model	Consommation de Model A
-Agent	Consommation de Jira Specialist
-User + Model	Modèles utilisés par Alice
-Project + Model	Répartition des modèles utilisés dans Satellite
-Agent + Project	Coût des sous-agents Jira/GitLab pour Satellite
+The implementation must not assume this behavior without evidence.
 
-Point de validation technique : la bonne propagation des informations d’identité et de projet aux sous-agents ainsi que l’absence de double comptabilisation doivent être vérifiées lors du POC.
+For the initial POC, all agents involved in a workflow should use the same selected model, if technically possible.
 
-⸻
+If dynamic routing is unsupported, the fallback is to provision separate agent configurations per authorized model.
 
-1.7. Maintainability, Scalability & Reliability Requirements
+2.4. Skills personalization
 
-Ces exigences concernent les qualités attendues de la solution à grande échelle.
+EAL is the source of truth for available Skills and their approved versions.
 
-ID	Requirement	Description	Status
-NFR-01	Centralized configuration	Les templates, configurations des agents et versions approuvées doivent être gérés de manière centralisée.	Mandatory
-NFR-02	Automated updates	Les mises à jour doivent pouvoir être déployées sans intervention manuelle sur chaque agent.	Mandatory
-NFR-03	Version management	Les versions des templates et des Skills doivent pouvoir être identifiées et contrôlées.	Mandatory
-NFR-04	Scalability	L’architecture doit pouvoir évoluer vers plusieurs milliers d’utilisateurs et un grand nombre de projets.	Mandatory
-NFR-05	Controlled provisioning latency	Les temps de provisioning doivent rester compatibles avec une expérience utilisateur acceptable.	Mandatory
-NFR-06	Fault tolerance	Une erreur de provisioning ou d’exécution ne doit pas entraîner d’incohérences durables dans les ressources.	Mandatory
-NFR-07	Safe updates	Les évolutions de configurations doivent éviter d’interrompre ou de modifier de manière imprévisible les exécutions actives.	Mandatory
-NFR-08	Auditability	Les opérations importantes de provisioning, modification, révocation et suppression doivent être traçables.	Mandatory
-NFR-09	Environment separation	Les configurations et déploiements doivent prendre en compte les environnements de développement, staging et production.	Mandatory
-NFR-10	Operational simplicity	L’architecture doit limiter autant que possible les duplications, opérations administratives et composants supplémentaires à maintenir.	Mandatory
-NFR-11	Resource limits	Les quotas et limites de l’environnement Orq.ai doivent être compatibles avec la volumétrie attendue.	To validate
-NFR-12	Monitoring reliability	Les métriques nécessaires au suivi métier doivent rester cohérentes et exploitables même en cas de changement de version ou de cycle de vie des agents.	Mandatory
+Users can select Skills individually.
 
-⸻
+Their selections must persist independently of Orq.ai agent configurations.
 
-1.8. Current Architectural Directions
+Personal agents must be built using the relevant common templates and the user’s authorized Skills.
 
-Les orientations suivantes reflètent les choix actuellement privilégiés par l’équipe.
+Investigate how the current project represents, creates, references and updates Orq.ai Skills.
 
-Elles ne constituent pas toutes des contraintes définitives et pourront évoluer à la suite des analyses ou des POC.
+2.5. Provisioning and lifecycle management
 
-Sujet	Orientation actuelle	Statut
-Orq.ai project structure	Un projet Orq.ai par projet LMC	Current direction
-User organization	Un folder par utilisateur au sein du projet Orq.ai	Current direction
-User access	Aucun accès direct des utilisateurs à Orq.ai	Mandatory
-Agent architecture	Un orchestrateur Engineering Companion avec des sous-agents Jira et GitLab	Current direction
-Agent personalization	Agents personnels par couple utilisateur/projet	Current direction
-Model selection	Agents préconfigurés par modèle autorisé	Current direction
-POC model configuration	Même modèle pour l’orchestrateur et les sous-agents	POC
-Project-specific models	Création de configurations de modèles distinctes selon les exigences IT	Mandatory
-Identity management	Une Identity Orq.ai stable par utilisateur	Mandatory
-Budget management	Budget par projet et budget par Identity	Mandatory
-Skills management	Personnalisation individuelle via l’EAL	Mandatory
-Provisioning	Création automatisée des ressources à la demande	Current direction
-Agent lifecycle	Suppression par session ou conservation avec réconciliation	To define
-Knowledge management	Documents personnels persistants	Mandatory
-Conversation management	Historique persistant entre les sessions	Mandatory
-Access control	Contrôles effectués par Engineering Companion et les services MCP	Mandatory
-Monitoring	Suivi par projet, utilisateur, modèle et agent	Mandatory
+Resources must be provisioned automatically through APIs.
+
+The current preferred lifecycle strategy is:
+
+Provision on Demand + Replace on Change.
+
+When a user enters an LMC project in Engineering Companion:
+
+1. Verify authorization.
+2. Resolve the corresponding Orq.ai project.
+3. Retrieve the user’s desired configuration.
+4. Check whether personalized agents already exist.
+5. Create them if missing.
+6. Reuse them if up to date.
+7. Create a new generation if their configuration is outdated.
+8. Switch new executions to the updated generation.
+9. Clean up obsolete generations safely.
+
+This lifecycle remains a recommendation and may change after POC results.
+
+The alternative strategy, involving agent creation at session start and deletion at session end, is still under consideration.
+
+All provisioning operations must be idempotent and recoverable.
+
+2.6. Identities and budgets
+
+The following requirements are mandatory:
+
+* One stable Orq.ai Identity per user.
+* One Orq.ai budget per Identity.
+* One Orq.ai budget per LMC/Orq.ai project.
+
+The solution must support cost attribution by:
+
+* User.
+* Project.
+* User and project.
+* Model.
+* Agent.
+* Multi-agent execution.
+
+Verify whether Identity and project information are correctly propagated to delegated sub-agents.
+
+Investigate existing budget management capabilities and how budgets can be provisioned automatically.
+
+2.7. Knowledge and conversations
+
+Personal documents and conversations must persist between user sessions.
+
+The lifecycle of agents must be independent from the lifecycle of user documents and conversation history.
+
+Investigate the existing conversation storage and the available Orq.ai conversation continuation mechanisms.
+
+Do not assume that deleting or replacing an Orq.ai agent preserves the ability to resume its previous conversations.
+
+2.8. Security
+
+LMC is the source of truth for project membership and permissions.
+
+Engineering Companion must enforce authorization for every sensitive operation.
+
+MCP servers must enforce the authorized user/project/connector scope.
+
+Jira and GitLab credentials must remain protected.
+
+Investigate the current Keycloak, LMC, SpiceDB, Vault, connector and MCP integrations where present.
+
+Do not expose credentials or sensitive configuration values in your report.
 
 ⸻
 
-1.9. Open Requirements & Points to Clarify
+3. CODEBASE INVESTIGATION
 
-Plusieurs décisions restent nécessaires pour finaliser les exigences techniques.
+Analyze the repositories available in the workspace.
 
-ID	Sujet	Question à résoudre
-OR-01	Agent lifecycle	Faut-il supprimer les agents après chaque session ou les conserver et synchroniser leurs configurations ?
-OR-02	Provisioning strategy	Faut-il provisionner tous les modèles autorisés dès la connexion ou uniquement le modèle sélectionné ?
-OR-03	Session expiration	Quelle durée d’inactivité doit déclencher la fermeture de l’environnement ?
-OR-04	Concurrent sessions	Un utilisateur peut-il maintenir plusieurs sessions ou onglets actifs sur un même projet ?
-OR-05	API key lifecycle	Faut-il créer une clé API temporaire par session utilisateur ou utiliser des clés de service limitées aux projets ?
-OR-06	Knowledge Base architecture	Les Knowledge Bases personnelles doivent-elles être conservées dans Orq.ai ou dans une infrastructure externe ?
-OR-07	Conversation continuity	Quel mécanisme garantit la reprise des conversations après suppression ou mise à jour des agents ?
-OR-08	Template updates	Les nouvelles versions doivent-elles être appliquées immédiatement ou lors de la prochaine utilisation ?
-OR-09	Skills synchronization	Comment synchroniser les versions EAL avec les Skills natifs Orq.ai et leurs associations aux agents ?
-OR-10	Sub-agent models	Le modèle choisi doit-il s’appliquer à tous les agents ou seulement à l’orchestrateur ?
-OR-11	Budget policies	Qui définit les budgets, leurs montants, leurs périodes et les règles de dépassement ?
-OR-12	Resource retention	Combien de temps conserver les agents inutilisés, les conversations et les documents personnels ?
-OR-13	Expected scale	Combien de projets, d’utilisateurs, de sessions simultanées et de modèles doivent être supportés ?
-OR-14	Performance targets	Quel temps maximal de préparation d’environnement est acceptable pour l’utilisateur ?
-OR-15	LMC synchronization	Comment Engineering Companion est-il informé des créations, modifications et suppressions de projets et permissions dans LMC ?
+Identify:
+
+A. Engineering Companion
+
+* Frontend architecture and routing.
+* Backend framework and module structure.
+* Authentication and authorization.
+* Project selection and conversation management.
+* Existing Orq.ai integration.
+* Current agent invocation and streaming.
+* Existing database models.
+* Existing tests.
+
+B. LMC — LEA Management Center
+
+* Project creation and lifecycle.
+* User/project membership management.
+* Permissions.
+* Connector configuration.
+* Model authorization.
+* Available API contracts.
+* Events, callbacks or synchronization mechanisms.
+* Existing mechanisms for notifying Engineering Companion.
+
+C. Orq.ai integration
+
+* Installed SDK versions.
+* API clients and wrappers.
+* Agents and templates.
+* Skills.
+* Model configuration.
+* Routing Rules.
+* Identities.
+* Budgets.
+* Tracing and monitoring.
+* Authentication and API key management.
+
+Determine which capabilities are already implemented and which need development.
+
+D. MCP
+
+* Existing Jira and GitLab tools.
+* Authentication mechanism.
+* User credential resolution.
+* Project context propagation.
+* Server-side authorization.
+* Connector restrictions.
+* Existing tests.
+
+E. EAL
+
+* Whether an EAL repository or API is available.
+* How Skills are represented.
+* How versions are managed.
+* How users select Skills.
+* How Skills can be synchronized with Orq.ai.
 
 ⸻
 
-1.10. Requirements Summary
+4. TECHNICAL VALIDATION
 
-Les exigences peuvent être regroupées autour de six piliers architecturaux.
+Use the following sources to investigate the implementation:
 
-Pilier	Objectif principal
-Project & Access Management	Garantir que chaque utilisateur travaille uniquement dans ses projets LMC autorisés.
-Agent & Model Management	Fournir des agents personnalisés utilisant les modèles autorisés, avec des configurations maintenables.
-Skills & Knowledge Management	Permettre la personnalisation via l’EAL et la conservation des connaissances personnelles.
-Provisioning & Lifecycle Management	Automatiser la création, la synchronisation et le nettoyage des ressources.
-Monitoring & Budget Management	Suivre les coûts et appliquer des budgets par projet et utilisateur.
-Security, Scalability & Reliability	Garantir une architecture sécurisée, robuste et adaptée à un déploiement à grande échelle.
+1. Existing repository code and tests.
+2. Project documentation.
+3. Installed SDKs and type definitions.
+4. Available API specifications.
+5. Existing Orq.ai clients and examples.
+6. Official Orq.ai documentation.
 
-Conclusion
+Do not guess undocumented API behavior.
 
-L’architecture cible doit permettre de fournir à chaque utilisateur un environnement Engineering Companion personnalisé, limité aux permissions de son projet LMC et capable d’évoluer automatiquement avec les configurations et les Skills validés.
+Clearly distinguish:
 
-Elle doit également assurer la persistance des données utilisateur, l’isolation des ressources, la traçabilité des exécutions ainsi qu’un contrôle financier à travers les budgets Orq.ai par projet et par Identity.
+* VERIFIED IN CODE
+* VERIFIED IN DOCUMENTATION
+* REQUIRES POC
+* UNKNOWN
 
-Le principal enjeu architectural reste de déterminer comment gérer le cycle de vie et la synchronisation des agents personnels de manière à maximiser la maintenabilité, sans introduire une complexité excessive dans le provisioning et l’exploitation.
+Whenever possible, reference the exact repository paths and relevant files supporting your findings.
 
-Les différentes solutions techniques devront être évaluées par rapport à ces exigences.
+Do not expose secrets, tokens, PATs or sensitive environment variables.
+
+⸻
+
+5. EXPECTED OUTPUT
+
+Provide a structured architecture investigation report.
+
+Section 1 — Existing architecture
+
+Explain the current implementation and component responsibilities.
+
+Include relevant repository paths and filenames.
+
+Section 2 — Existing reusable components
+
+Identify functionality that can be reused without significant changes.
+
+Section 3 — Missing capabilities
+
+Identify what must be added for the target architecture.
+
+Section 4 — Integration gaps and risks
+
+Pay particular attention to:
+
+* LMC/EC API compatibility.
+* User/project authorization.
+* Orq.ai project and agent provisioning.
+* Skill personalization.
+* Dynamic model selection through Routing Rules.
+* Identity propagation.
+* Budget creation and enforcement.
+* MCP project scoping.
+* Conversation persistence.
+* Knowledge Base isolation.
+* Agent lifecycle and configuration updates.
+
+Section 5 — Proposed implementation architecture
+
+Recommend the minimum set of backend components needed to implement the POC.
+
+Reuse the existing architecture wherever possible.
+
+Do not propose unnecessary microservices.
+
+Section 6 — Recommended implementation plan
+
+Divide the work into small, testable phases.
+
+For each phase, identify:
+
+* Objective.
+* Existing components to reuse.
+* New components required.
+* Dependencies.
+* Acceptance criteria.
+* Main technical risks.
+
+Section 7 — First POC recommendation
+
+Identify the smallest experiment that can validate dynamic model routing for Orq.ai managed agents and sub-agents.
+
+Describe how to observe the actual model used and verify that agent behavior, Skills and tool access are preserved.
+
+Do not implement the POC yet.
+
+⸻
+
+6. FINAL INSTRUCTIONS
+
+Do not change any code during this phase.
+
+Do not fabricate API endpoints, implementation details or test results.
+
+Ground technical findings in actual source files or available documentation.
+
+If a repository is missing, explicitly state that it is unavailable.
+
+Distinguish mandatory requirements from provisional architecture choices.
+
+Prioritize existing implementations over rebuilding functionality.
+
+At the end, summarize:
+
+1. What already exists.
+2. What is missing.
+3. What is uncertain.
+4. The most important architectural risks.
+5. The exact first implementation task you recommend.
+
+Respond in French, keeping technical identifiers and code terminology in English.
