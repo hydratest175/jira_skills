@@ -1,19 +1,21 @@
-export OPENCODE_CONFIG_CONTENT="$(python3 - <<'PY'
-import json
+python3 - <<'PY'
+from pathlib import Path
 
-path = "/root/.config/opencode/model-catalogs/c3-ca/thales-azure-sso.json"
+p = Path("/root/.config/opencode/plugins/azure-sso/dist/index.js")
 
-with open(path) as f:
-    models = json.load(f)
+old = 'resolveEnvTemplate(raw?.provider)?.trim() || "openai"'
+new = 'resolveEnvTemplate(raw?.provider)?.trim() || "thales-azure-sso"'
 
-config = {
-    "provider": {
-        "thales-azure-sso": {
-            "models": models
-        }
-    }
-}
+content = p.read_text()
 
-print(json.dumps(config))
+if content.count(old) != 1:
+    raise SystemExit("Modification annulée : ligne attendue introuvable ou ambiguë.")
+
+backup = p.with_name("index.js.bak")
+backup.write_text(content)
+
+p.write_text(content.replace(old, new, 1))
+
+print("Provider corrigé : thales-azure-sso")
+print("Sauvegarde créée :", backup)
 PY
-)"
