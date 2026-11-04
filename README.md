@@ -1,304 +1,79 @@
-Engineering Companion — Orq.ai Provisioning POC
+Nous avons terminé la première implémentation du Mock LMC dans le dossier mock-lmc-orq-poc.
 
-Technical Reference & Development Instructions
+Je veux maintenant uniquement réussir à lancer cette application dans mon navigateur.
 
-1. Objective
+CONTEXTE
 
-We are building a standalone POC using:
+Nous travaillons dans le Dev Container de LEA_Workspace.
 
-* React + TypeScript + Vite
-* FastAPI + Python
-* SQLite
-* Orq.ai Python SDK 4.13.14
+Le Dev Container utilise Python 3.14.8, alors que notre backend nécessite Python 3.12 ou 3.13.
 
-The objective is to demonstrate the provisioning of Orq.ai resources from a simplified Mock LMC (LEA Management Center).
+Nous avons trouvé une image Docker interne déjà disponible localement :
 
-The POC focuses exclusively on projects, users, folders, agents, model configurations, Routing Rules, Identities and budgets.
+carma.corp.thales/docker/python:3.13-slim
 
-EAL, Skills, Knowledge Bases, conversations and real MCP integrations are excluded.
+Nous avons vérifié son fonctionnement :
 
-2. Existing code and SDK
+* Python 3.13.15 : OK.
+* pip 26.2.1 : OK.
+* FastAPI : non installé.
+* Uvicorn : non installé.
+* SQLAlchemy : non installé.
 
-Use the existing repositories as read-only references:
+Nous souhaitons donc utiliser cette image Docker pour exécuter notre backend, sans modifier notre Dev Container.
 
-LMC:
-LEA_Workspace/lcc/
+OBJECTIF
 
-Existing Orq.ai provisioning POC:
-LEA_Workspace/use-case-engineering-companion/thales-orq-provisioning/
+Rendre le Mock LMC entièrement fonctionnel en local avec :
 
-Inspect the existing SDK integration and reuse its patterns where appropriate.
+* Frontend : React + TypeScript + Vite.
+* Backend : FastAPI.
+* Base de données : SQLite.
+* Backend exécuté dans Docker avec Python 3.13.
 
-The installed SDK version is orq-ai-sdk 4.13.14.
+TRAVAIL DEMANDÉ
 
-Use local SDK source code, method signatures and Pydantic models to verify API contracts.
+1. Inspecte l’implémentation actuelle du dossier mock-lmc-orq-poc.
+2. Configure le backend pour fonctionner avec l’image Docker :
+    carma.corp.thales/docker/python:3.13-slim
+3. Crée un Dockerfile minimal pour le backend.
+4. Utilise les dépendances déclarées dans backend/pyproject.toml.
+5. Identifie la méthode appropriée pour installer les dépendances Python dans notre environnement Thales, en privilégiant les registres internes autorisés et les configurations de certificats existantes.
+6. Configure la persistance de SQLite pour conserver les données après redémarrage du conteneur.
+7. Expose le backend FastAPI sur le port 8000.
+8. Configure correctement la communication entre le frontend React et le backend.
+9. Prépare une méthode simple de lancement du Mock LMC, idéalement avec Docker Compose si cela simplifie réellement le démarrage.
+10. Vérifie que la configuration est cohérente et que les services peuvent démarrer. Effectue uniquement les vérifications locales nécessaires.
 
-Do not invent unsupported SDK methods or HTTP endpoints.
+CONTRAINTES IMPORTANTES
 
-3. Orq.ai capabilities
+* Ne modifie pas le vrai LMC (lcc).
+* Ne modifie pas Engineering Companion.
+* Ne modifie pas la configuration du Dev Container.
+* Ne change pas la version Python du POC.
+* Ne désactive pas la vérification des certificats SSL.
+* Ne stocke aucun identifiant ou token dans le Dockerfile.
+* Utilise les images Docker internes déjà disponibles.
+* Ne développe aucune nouvelle fonctionnalité.
+* Ne réalise aucun appel à Orq.ai.
+* N’ajoute pas d’infrastructure inutile.
+* Ne modifie que les fichiers nécessaires dans mock-lmc-orq-poc.
 
-The SDK exposes operations for:
+Si l’installation des dépendances est bloquée par les restrictions réseau ou les registres Python de l’entreprise, identifie précisément le problème et propose la correction minimale. Ne multiplie pas les tentatives ou les solutions alternatives sans justification.
 
-Resource	Main capabilities
-Projects	CRUD
-Models	Creation, update, activation, access information
-Identities	CRUD using stable external identifiers
-Budgets	CRUD, scopes and consumption retrieval
-Agents	CRUD and resource paths
-Routing Rules	CRUD and CEL expressions
-Monitoring	Logs, traces and reporting
-API Keys	Management and project-level operations
+RÉSULTAT ATTENDU
 
-Some behavior remains to be validated on our Orq.ai instance.
+Je veux pouvoir :
 
-Projects
+1. Lancer le Mock LMC facilement.
+2. Ouvrir son interface React dans mon navigateur.
+3. Créer un projet fictif.
+4. Ajouter des utilisateurs.
+5. Configurer les modèles et budgets.
+6. Vérifier que les données sont bien enregistrées dans SQLite.
 
-Use the project management APIs to create or retrieve the Orq.ai project corresponding to a Mock LMC project.
+À la fin, indique-moi les commandes exactes à exécuter et l’adresse locale à ouvrir dans mon navigateur.
 
-Persist the mapping in SQLite to prevent duplicate creation.
+Notre seul objectif pour l’instant est de faire fonctionner le Mock LMC localement. Nous ne commençons pas encore l’intégration Orq.ai.
 
-Models
-
-The public API supports OpenAI-compatible custom models through:
-
-POST /v2/models/openai-like
-
-Model configuration includes the provider endpoint, model identifier, display name, credentials and model capabilities.
-
-Models are managed at workspace level.
-
-Orq.ai Studio also provides an Access Control interface allowing model access to be restricted to selected projects.
-
-The exact SDK/API operation for modifying project access must still be identified.
-
-Do not invent a project_id parameter for models.create().
-
-Identities
-
-Use a stable external_id for each user.
-
-The same Identity should be reused across projects.
-
-Runtime requests can use the corresponding Identity identifier for attribution.
-
-Budgets
-
-Budget creation is available through:
-
-POST /v2/budgets
-
-The required scopes are:
-
-Project budget:
-
-{
-  "scope": {
-    "project": {
-      "project_id": "<ORQ_PROJECT_ID>"
-    }
-  }
-}
-
-Identity budget:
-
-{
-  "scope": {
-    "identity": {
-      "identity_external_id": "<USER_EXTERNAL_ID>"
-    }
-  }
-}
-
-These examples only describe the scopes. Use the installed SDK models to determine the complete required request parameters, limits and units.
-
-Project and Identity budgets can apply simultaneously.
-
-Agents and folders
-
-Agents can be created through the SDK.
-
-The path attribute can be used to organize resources under user-specific folders.
-
-The SDK does not expose a verified standalone folder-management API.
-
-Folders must not be treated as security boundaries.
-
-Routing Rules
-
-Routing Rules can be managed through:
-
-POST /v2/routing-rules
-
-Relevant fields include:
-
-* project_id
-* expression
-* models_config
-* priority
-* enabled
-
-Orq.ai Studio provides a Rule Builder supporting conditions based on request attributes, including headers and metadata.
-
-The exact CEL expression should be verified using the configuration generated by Orq Studio.
-
-It remains uncertain whether Routing Rules can modify the underlying LLM of managed agents and delegated sub-agents.
-
-Do not assume this behavior works without validation.
-
-4. IMPORTANT — Testing and validation strategy
-
-Do not build automated integration tests for functionality that can be verified manually through Orq.ai Studio.
-
-The user will personally perform functional validation in the Orq.ai interface.
-
-Software Companion should focus on implementation, not on building an extensive automated test infrastructure.
-
-Manual validation performed by the user
-
-The following checks will be performed manually:
-
-Projects
-
-* Verify that the project appears in Orq.ai.
-* Verify its name and configuration.
-
-Models
-
-* Verify that custom models were created.
-* Inspect their Access Control settings.
-* Verify which projects can access them.
-
-Identities
-
-* Verify that the corresponding Identities exist.
-* Inspect their information in Orq.ai.
-
-Budgets
-
-* Verify that project and Identity budgets exist.
-* Inspect their configured limits.
-* Use an agent and manually check whether consumption increases.
-* Verify budget enforcement manually if needed.
-
-Agents and folders
-
-* Verify that the expected user folders appear.
-* Verify that each folder contains the expected agents.
-* Inspect their configurations and relationships.
-
-Routing Rules
-
-* Inspect the created rules in Orq Studio.
-* Configure a test rule manually when appropriate.
-* Execute the relevant agent.
-* Inspect the actual executed model in Orq.ai traces.
-
-Monitoring
-
-* Inspect Identity attribution.
-* Inspect project consumption.
-* Check model usage and costs.
-* Inspect orchestrator and sub-agent traces.
-
-Software Companion does not need to automate these visual and functional checks.
-
-5. When automated tests are acceptable
-
-Automated tests should be used only when:
-
-1. A behavior cannot reasonably be verified manually.
-2. A minimal technical test is required to determine whether a critical feature is supported.
-3. A simple local code-level check is useful to identify an implementation error.
-
-Examples include:
-
-* Checking that the FastAPI application imports correctly.
-* Checking that SQLite operations work.
-* Verifying basic request validation.
-* Executing one targeted API request when a behavior cannot be tested in Orq Studio.
-
-Do not create comprehensive integration test suites, load tests or large automated scenarios.
-
-Do not generate artificial API traffic for budget or monitoring validation.
-
-Do not run concurrent-request tests unless specifically requested.
-
-Before running tests that communicate with Orq.ai, explain why the test is necessary and obtain the user’s approval.
-
-6. Preferred workflow
-
-Work incrementally.
-
-Step 1 — Mock LMC
-
-Implement the minimal React + FastAPI + SQLite application.
-
-Allow project creation, user assignment, model selection and budget configuration.
-
-Step 2 — Project provisioning
-
-Implement project creation through the Orq.ai SDK.
-
-The user will manually verify the result in Orq Studio.
-
-Step 3 — Identities
-
-Implement Identity provisioning.
-
-The user verifies the created Identities.
-
-Step 4 — Budgets
-
-Implement project and Identity budget provisioning.
-
-The user verifies the budgets and their consumption manually.
-
-Step 5 — Models
-
-Implement custom model provisioning and investigate project Access Control.
-
-The user verifies model configuration and access permissions through Orq Studio.
-
-Step 6 — Agents and folders
-
-Implement user-specific agent provisioning.
-
-The user inspects the resulting folder structure.
-
-Step 7 — Routing Rules
-
-Implement routing configuration using verified SDK/API contracts.
-
-The user validates the behavior through Orq Studio.
-
-If a manual check cannot demonstrate the actual model selection, propose the smallest possible targeted technical test.
-
-7. Development rules
-
-* Develop one feature at a time.
-* Keep the implementation minimal.
-* Avoid unnecessary abstractions and infrastructure.
-* Do not modify the existing LMC or Engineering Companion repositories.
-* Reuse existing SDK integration patterns.
-* Do not expose credentials.
-* Do not perform unauthorized operations against Orq.ai.
-* Do not delete existing resources.
-* Implement basic error handling and idempotency.
-* Keep generated resources identifiable as POC resources.
-* Do not create unnecessary test files or automated testing frameworks.
-
-8. Collaboration process
-
-After implementing each feature:
-
-1. Explain what was implemented.
-2. Indicate which files were created or modified.
-3. Explain how to launch or use the feature.
-4. Describe the simple manual verification the user should perform in Orq.ai Studio.
-5. Wait for the user’s feedback before implementing the next feature.
-
-If a technical problem requires an automated test, explain why manual validation is insufficient before proposing the test.
-
-The goal is to build a functional POC efficiently, with Software Companion handling development and the user handling most functional validation.
-
-Respond in French.
+Réponds en français.
