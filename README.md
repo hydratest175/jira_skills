@@ -1,72 +1,41 @@
-Nous avons terminé la première étape du Mock LMC.
+Nous avons validé l’étape précédente : le Mock LMC permet désormais de créer un véritable projet dans Orq.ai.
 
-L’application React + FastAPI + SQLite fonctionne maintenant avec Docker Compose.
+Je souhaite passer à l’étape suivante : le provisioning des Identities Orq.ai.
 
-J’ai créé un projet, ajouté des utilisateurs, configuré les modèles et les budgets.
+Objectif
 
-Nous allons maintenant commencer l’intégration réelle avec Orq.ai, progressivement.
+Lorsqu’un projet Mock LMC est provisionné, créer ou retrouver les Identities Orq.ai correspondant aux utilisateurs membres de ce projet.
 
-OBJECTIF
+Fonctionnement attendu
 
-Implémenter uniquement la création automatique d’un projet Orq.ai à partir d’un projet existant dans le Mock LMC.
+1. Récupérer les utilisateurs membres du projet depuis SQLite.
+2. Pour chaque utilisateur, rechercher son Identity dans Orq.ai à partir d’un external_id stable.
+3. Si l’Identity existe déjà, la réutiliser.
+4. Sinon, créer une nouvelle Identity via le SDK Orq.ai.
+5. Enregistrer dans SQLite les correspondances entre utilisateurs locaux et Identities Orq.ai.
+6. Afficher dans le Mock LMC un statut permettant de vérifier que les Identities ont été provisionnées.
 
-Le workflow attendu est :
+Contraintes importantes
 
-Mock LMC → Bouton Provisionner → FastAPI → SDK Orq.ai → Création du projet.
+* Une seule Identity Orq.ai par utilisateur, réutilisable entre plusieurs projets.
+* Ne pas créer une nouvelle Identity à chaque provisioning.
+* Réutiliser le SDK Orq.ai 4.13.14 déjà intégré.
+* Vérifier les signatures et les permissions nécessaires directement dans le SDK installé.
+* Conserver le fonctionnement actuel de création des projets.
+* Le projet test_auto étant déjà provisionné, un nouveau provisioning doit ajouter les Identities sans recréer le projet.
+* Prévoir une gestion simple des erreurs et une reprise idempotente.
+* Ne pas créer de budgets, modèles, agents, folders ou Routing Rules pour le moment.
+* Ne pas modifier les autres repositories.
+* Ne pas exécuter d’opérations réelles sur Orq.ai sans mon accord.
 
-IMPLÉMENTATION
+Validation
 
-Travaille uniquement dans mock-lmc-orq-poc.
+Je vérifierai personnellement dans Orq Studio que les Identities ont été créées correctement.
 
-Réutilise les patterns du SDK Orq.ai déjà présents dans :
+Inutile de développer des tests d’intégration complexes ou des tests automatisés qui nécessitent de multiplier les appels Orq.ai.
 
-use-case-engineering-companion/thales-orq-provisioning
+Implémente uniquement cette fonctionnalité et explique-moi comment la tester depuis le Mock LMC.
 
-Le SDK disponible est orq-ai-sdk 4.13.14.
-
-Utilise une Management Key avec les permissions nécessaires pour créer les projets.
-
-La clé doit rester exclusivement côté backend, sans être enregistrée dans SQLite ni exposée au frontend.
-
-Implémente la création du projet Orq.ai en utilisant son nom et sa description définis dans le Mock LMC.
-
-Enregistre dans SQLite le mapping entre l’identifiant du projet Mock LMC et l’identifiant du projet Orq.ai.
-
-Le provisioning doit être idempotent : cliquer plusieurs fois sur Provisionner ne doit pas créer plusieurs projets Orq.ai identiques.
-
-Prévois un mode dry-run et une gestion simple des erreurs.
-
-Le frontend doit afficher le résultat du provisioning, notamment son statut et l’identifiant du projet Orq.ai créé.
-
-IMPORTANT
-
-Pour cette étape, ne provisionne aucune autre ressource.
-
-Ne crée pas encore :
-
-* Les modèles.
-* Les Identities.
-* Les budgets.
-* Les agents.
-* Les folders.
-* Les Routing Rules.
-
-Ne modifie pas les repositories existants.
-
-Ne développe pas de tests d’intégration automatisés inutiles.
-
-Ne lance pas d’opération réelle contre Orq.ai sans mon accord.
-
-Je vérifierai moi-même dans l’interface Orq.ai que le projet a bien été créé.
-
-RÉSULTAT ATTENDU
-
-Je veux pouvoir ouvrir le Mock LMC, sélectionner mon projet test_auto, cliquer sur Provisionner et retrouver automatiquement le projet correspondant dans Orq.ai.
-
-Explique-moi les éventuelles variables d’environnement nécessaires, sans afficher de secrets.
-
-Indique-moi comment reconstruire et relancer le POC avec Docker Compose.
-
-Ne passe pas à l’étape suivante avant ma validation.
+Ne passe pas à l’étape suivante sans ma validation.
 
 Réponds en français.
