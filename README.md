@@ -1,79 +1,72 @@
-Nous avons terminé la première implémentation du Mock LMC dans le dossier mock-lmc-orq-poc.
+Nous avons terminé la première étape du Mock LMC.
 
-Je veux maintenant uniquement réussir à lancer cette application dans mon navigateur.
+L’application React + FastAPI + SQLite fonctionne maintenant avec Docker Compose.
 
-CONTEXTE
+J’ai créé un projet, ajouté des utilisateurs, configuré les modèles et les budgets.
 
-Nous travaillons dans le Dev Container de LEA_Workspace.
-
-Le Dev Container utilise Python 3.14.8, alors que notre backend nécessite Python 3.12 ou 3.13.
-
-Nous avons trouvé une image Docker interne déjà disponible localement :
-
-carma.corp.thales/docker/python:3.13-slim
-
-Nous avons vérifié son fonctionnement :
-
-* Python 3.13.15 : OK.
-* pip 26.2.1 : OK.
-* FastAPI : non installé.
-* Uvicorn : non installé.
-* SQLAlchemy : non installé.
-
-Nous souhaitons donc utiliser cette image Docker pour exécuter notre backend, sans modifier notre Dev Container.
+Nous allons maintenant commencer l’intégration réelle avec Orq.ai, progressivement.
 
 OBJECTIF
 
-Rendre le Mock LMC entièrement fonctionnel en local avec :
+Implémenter uniquement la création automatique d’un projet Orq.ai à partir d’un projet existant dans le Mock LMC.
 
-* Frontend : React + TypeScript + Vite.
-* Backend : FastAPI.
-* Base de données : SQLite.
-* Backend exécuté dans Docker avec Python 3.13.
+Le workflow attendu est :
 
-TRAVAIL DEMANDÉ
+Mock LMC → Bouton Provisionner → FastAPI → SDK Orq.ai → Création du projet.
 
-1. Inspecte l’implémentation actuelle du dossier mock-lmc-orq-poc.
-2. Configure le backend pour fonctionner avec l’image Docker :
-    carma.corp.thales/docker/python:3.13-slim
-3. Crée un Dockerfile minimal pour le backend.
-4. Utilise les dépendances déclarées dans backend/pyproject.toml.
-5. Identifie la méthode appropriée pour installer les dépendances Python dans notre environnement Thales, en privilégiant les registres internes autorisés et les configurations de certificats existantes.
-6. Configure la persistance de SQLite pour conserver les données après redémarrage du conteneur.
-7. Expose le backend FastAPI sur le port 8000.
-8. Configure correctement la communication entre le frontend React et le backend.
-9. Prépare une méthode simple de lancement du Mock LMC, idéalement avec Docker Compose si cela simplifie réellement le démarrage.
-10. Vérifie que la configuration est cohérente et que les services peuvent démarrer. Effectue uniquement les vérifications locales nécessaires.
+IMPLÉMENTATION
 
-CONTRAINTES IMPORTANTES
+Travaille uniquement dans mock-lmc-orq-poc.
 
-* Ne modifie pas le vrai LMC (lcc).
-* Ne modifie pas Engineering Companion.
-* Ne modifie pas la configuration du Dev Container.
-* Ne change pas la version Python du POC.
-* Ne désactive pas la vérification des certificats SSL.
-* Ne stocke aucun identifiant ou token dans le Dockerfile.
-* Utilise les images Docker internes déjà disponibles.
-* Ne développe aucune nouvelle fonctionnalité.
-* Ne réalise aucun appel à Orq.ai.
-* N’ajoute pas d’infrastructure inutile.
-* Ne modifie que les fichiers nécessaires dans mock-lmc-orq-poc.
+Réutilise les patterns du SDK Orq.ai déjà présents dans :
 
-Si l’installation des dépendances est bloquée par les restrictions réseau ou les registres Python de l’entreprise, identifie précisément le problème et propose la correction minimale. Ne multiplie pas les tentatives ou les solutions alternatives sans justification.
+use-case-engineering-companion/thales-orq-provisioning
+
+Le SDK disponible est orq-ai-sdk 4.13.14.
+
+Utilise une Management Key avec les permissions nécessaires pour créer les projets.
+
+La clé doit rester exclusivement côté backend, sans être enregistrée dans SQLite ni exposée au frontend.
+
+Implémente la création du projet Orq.ai en utilisant son nom et sa description définis dans le Mock LMC.
+
+Enregistre dans SQLite le mapping entre l’identifiant du projet Mock LMC et l’identifiant du projet Orq.ai.
+
+Le provisioning doit être idempotent : cliquer plusieurs fois sur Provisionner ne doit pas créer plusieurs projets Orq.ai identiques.
+
+Prévois un mode dry-run et une gestion simple des erreurs.
+
+Le frontend doit afficher le résultat du provisioning, notamment son statut et l’identifiant du projet Orq.ai créé.
+
+IMPORTANT
+
+Pour cette étape, ne provisionne aucune autre ressource.
+
+Ne crée pas encore :
+
+* Les modèles.
+* Les Identities.
+* Les budgets.
+* Les agents.
+* Les folders.
+* Les Routing Rules.
+
+Ne modifie pas les repositories existants.
+
+Ne développe pas de tests d’intégration automatisés inutiles.
+
+Ne lance pas d’opération réelle contre Orq.ai sans mon accord.
+
+Je vérifierai moi-même dans l’interface Orq.ai que le projet a bien été créé.
 
 RÉSULTAT ATTENDU
 
-Je veux pouvoir :
+Je veux pouvoir ouvrir le Mock LMC, sélectionner mon projet test_auto, cliquer sur Provisionner et retrouver automatiquement le projet correspondant dans Orq.ai.
 
-1. Lancer le Mock LMC facilement.
-2. Ouvrir son interface React dans mon navigateur.
-3. Créer un projet fictif.
-4. Ajouter des utilisateurs.
-5. Configurer les modèles et budgets.
-6. Vérifier que les données sont bien enregistrées dans SQLite.
+Explique-moi les éventuelles variables d’environnement nécessaires, sans afficher de secrets.
 
-À la fin, indique-moi les commandes exactes à exécuter et l’adresse locale à ouvrir dans mon navigateur.
+Indique-moi comment reconstruire et relancer le POC avec Docker Compose.
 
-Notre seul objectif pour l’instant est de faire fonctionner le Mock LMC localement. Nous ne commençons pas encore l’intégration Orq.ai.
+Ne passe pas à l’étape suivante avant ma validation.
 
 Réponds en français.
