@@ -1,389 +1,304 @@
-TASK: Mock LMC & Orq.ai Provisioning POC — Architecture Discovery
+Engineering Companion — Orq.ai Provisioning POC
 
-1. CONTEXT
+Technical Reference & Development Instructions
 
-We are building a standalone Proof of Concept demonstrating automated Orq.ai resource provisioning from a simplified version of LMC (LEA Management Center).
+1. Objective
 
-The objective is to analyze the existing enterprise codebases, understand their implementation, and design a minimal application that reproduces the essential LMC workflow.
+We are building a standalone POC using:
 
-Technology Stack
+* React + TypeScript + Vite
+* FastAPI + Python
+* SQLite
+* Orq.ai Python SDK 4.13.14
 
-* Frontend: React + TypeScript + Vite
-* Backend: Python + FastAPI
-* Persistence: SQLite
-* AI Platform: Orq.ai
-* Deployment: Local development, Docker support if appropriate
+The objective is to demonstrate the provisioning of Orq.ai resources from a simplified Mock LMC (LEA Management Center).
 
-Keep the architecture minimal and independent of the existing applications.
+The POC focuses exclusively on projects, users, folders, agents, model configurations, Routing Rules, Identities and budgets.
 
-⸻
+EAL, Skills, Knowledge Bases, conversations and real MCP integrations are excluded.
 
-2. EXISTING REPOSITORIES — IMPORTANT PATHS
+2. Existing code and SDK
 
-All relevant repositories are located inside:
+Use the existing repositories as read-only references:
 
-LEA_Workspace/
-
-A. LMC — LEA Management Center
-
-Exact relative path:
-
+LMC:
 LEA_Workspace/lcc/
 
-This directory contains the existing LMC implementation.
+Existing Orq.ai provisioning POC:
+LEA_Workspace/use-case-engineering-companion/thales-orq-provisioning/
 
-Analyze its code to understand the project, user, membership, permission and model management workflows.
+Inspect the existing SDK integration and reuse its patterns where appropriate.
 
-The application currently cannot be launched successfully.
+The installed SDK version is orq-ai-sdk 4.13.14.
 
-Do not attempt to repair or launch LMC. Only inspect its source code.
+Use local SDK source code, method signatures and Pydantic models to verify API contracts.
 
-B. Existing Orq.ai Provisioning POC
+Do not invent unsupported SDK methods or HTTP endpoints.
 
-Exact relative path:
+3. Orq.ai capabilities
 
-LEA_Workspace/use-case-engineering-companion/thales_orq_provisioning/
+The SDK exposes operations for:
 
-This project already uses the Orq.ai Python SDK.
+Resource	Main capabilities
+Projects	CRUD
+Models	Creation, update, activation, access information
+Identities	CRUD using stable external identifiers
+Budgets	CRUD, scopes and consumption retrieval
+Agents	CRUD and resource paths
+Routing Rules	CRUD and CEL expressions
+Monitoring	Logs, traces and reporting
+API Keys	Management and project-level operations
 
-This is an important technical reference for our new POC.
-
-Inspect it carefully to identify:
-
-* How the Orq.ai SDK is imported.
-* Which SDK package and version are used.
-* How the SDK client is initialized.
-* How the Orq.ai endpoint is configured.
-* How authentication is handled.
-* Which provisioning operations are implemented.
-* Which API methods are already being used.
-* Which existing patterns can be reused.
-
-Do not expose API keys, credentials or other sensitive values.
-
-If your working directory is already LEA_Workspace, use the corresponding relative paths without repeating the workspace directory.
-
-⸻
-
-3. ORQ.AI SDK INVESTIGATION
-
-Inspect the SDK integration already present in:
-
-use-case-engineering-companion/thales_orq_provisioning/
-
-Determine the exact installed SDK package and version.
-
-Inspect its available methods, request models and response models.
-
-Focus on the following capabilities:
-
-1. Creating and retrieving Orq.ai projects.
-2. Creating project-specific model configurations.
-3. Creating and retrieving Identities.
-4. Creating and managing budgets.
-5. Creating and configuring agents.
-6. Organizing agentic resources using folders or paths.
-7. Creating and managing Routing Rules.
-8. Executing managed agents.
-9. Retrieving monitoring and usage information.
-
-Verify which operations are directly supported by the SDK.
-
-Identify any operations requiring direct HTTP API calls.
-
-Determine which operations require Management Keys or project-scoped API keys.
-
-Do not invent SDK methods or assume capabilities that have not been verified.
-
-Do not install or upgrade dependencies during this phase.
-
-⸻
-
-4. POC FUNCTIONAL SCOPE
-
-The POC focuses exclusively on:
-
-* Project creation.
-* User creation and project membership.
-* User-specific Orq.ai folders.
-* Agentic resource provisioning.
-* Project-specific model configurations.
-* Dynamic model selection through Routing Rules.
-* Persistent Orq.ai Identities.
-* Project budgets.
-* Identity budgets.
-
-Out of Scope
-
-* EAL and Skills.
-* Knowledge Bases.
-* Conversation history.
-* Jira/GitLab connectors and MCP integration.
-* Real SSO authentication.
-* Production infrastructure.
-* Advanced agent lifecycle management.
-
-⸻
-
-5. ANALYZE THE EXISTING LMC
-
-Inspect:
-
-LEA_Workspace/lcc/
-
-Understand how LMC currently manages:
-
-* Project creation and identifiers.
-* User representation.
-* Project memberships.
-* Roles and permissions.
-* Available LLM models.
-* Model authorizations.
-
-Identify the relevant backend models, API contracts and source files.
-
-The objective is to reproduce only the essential business logic needed for provisioning.
-
-Do not reproduce unnecessary infrastructure such as Keycloak, SpiceDB or Vault.
-
-⸻
-
-6. TARGET MOCK LMC
-
-Design a minimal standalone application.
-
-Frontend — React + TypeScript
-
-The interface should allow us to:
-
-* Create and view projects.
-* Create or select synthetic users.
-* Assign users to projects.
-* Configure available models for each project.
-* Define authorized models for each user.
-* Configure project budgets.
-* Configure individual user budgets.
-* Trigger provisioning through a button.
-* Display provisioning status and created resources.
-
-Backend — FastAPI
-
-The backend should:
-
-* Manage Mock LMC data.
-* Persist configurations in SQLite.
-* Validate user and project configurations.
-* Communicate with Orq.ai through the SDK or verified APIs.
-* Orchestrate provisioning.
-* Track created resource identifiers and provisioning status.
-
-The frontend must never handle Orq.ai API credentials.
-
-⸻
-
-7. TARGET ORQ.AI ARCHITECTURE
+Some behavior remains to be validated on our Orq.ai instance.
 
 Projects
 
-One LMC project corresponds to one Orq.ai project.
+Use the project management APIs to create or retrieve the Orq.ai project corresponding to a Mock LMC project.
 
-User Folders
-
-Each project may contain several users.
-
-Their agentic resources should be organized in user-specific folders or paths.
-
-Example:
-
-Orq.ai — Project A
-│
-├── Alice/
-│   ├── Engineering Companion
-│   ├── Jira Specialist
-│   └── GitLab Specialist
-│
-└── Bob/
-    ├── Engineering Companion
-    ├── Jira Specialist
-    └── GitLab Specialist
-
-Investigate how folders are managed through the SDK or API.
-
-Folders must not be treated as security boundaries.
+Persist the mapping in SQLite to prevent duplicate creation.
 
 Models
 
-Each Orq.ai project requires project-specific model configurations.
+The public API supports OpenAI-compatible custom models through:
 
-The same underlying LLM may be associated with different project-specific configurations.
+POST /v2/models/openai-like
 
-This mechanism has already been tested manually.
+Model configuration includes the provider endpoint, model identifier, display name, credentials and model capabilities.
 
-Investigate how to automate it.
+Models are managed at workspace level.
 
-Routing Rules
+Orq.ai Studio also provides an Access Control interface allowing model access to be restricted to selected projects.
 
-We want to dynamically select the underlying LLM using request metadata or headers.
+The exact SDK/API operation for modifying project access must still be identified.
 
-The POC must determine whether Routing Rules work for:
-
-* Direct model requests.
-* Orq.ai managed agents.
-* Delegated sub-agents.
-* Concurrent requests selecting different models.
-
-Verify the actual executed model through traces.
-
-Do not assume that Routing Rules affect internal agent calls without testing.
-
-If unsupported, propose the fallback architecture using separate agent configurations per model.
-
-Agents
-
-The initial agentic architecture includes:
-
-* Engineering Companion — Main orchestrator.
-* Jira Specialist.
-* GitLab Specialist.
-
-Specialists may use simple instructions without real external integrations.
-
-Each user should have personalized agentic resources inside their project.
+Do not invent a project_id parameter for models.create().
 
 Identities
 
-Create one persistent Orq.ai Identity per user.
+Use a stable external_id for each user.
 
-The same Identity should be reusable across projects.
+The same Identity should be reused across projects.
+
+Runtime requests can use the corresponding Identity identifier for attribution.
 
 Budgets
 
-Create:
+Budget creation is available through:
 
-* One budget per Orq.ai project.
-* One budget per user Identity.
+POST /v2/budgets
 
-Investigate budget creation, enforcement and consumption attribution.
+The required scopes are:
 
-⸻
+Project budget:
 
-8. TARGET WORKFLOW
+{
+  "scope": {
+    "project": {
+      "project_id": "<ORQ_PROJECT_ID>"
+    }
+  }
+}
 
-The final POC should demonstrate:
+Identity budget:
 
-MOCK LMC
-    │
-    ▼
-Create Project
-    │
-    ▼
-Assign Users
-    │
-    ▼
-Configure Models
-    │
-    ▼
-Configure Budgets
-    │
-    ▼
-Click "Provision"
-    │
-    ▼
-FASTAPI PROVISIONING SERVICE
-    │
-    ├── Create Orq.ai Project
-    ├── Configure Project Models
-    ├── Create User Identities
-    ├── Create Project Budget
-    ├── Create Identity Budgets
-    ├── Organize User Folders
-    ├── Create Personal Agents
-    └── Configure Routing Rules
-    │
-    ▼
-ORQ.AI RESOURCES READY
+{
+  "scope": {
+    "identity": {
+      "identity_external_id": "<USER_EXTERNAL_ID>"
+    }
+  }
+}
 
-Provisioning must eventually be idempotent and avoid creating duplicate resources.
+These examples only describe the scopes. Use the installed SDK models to determine the complete required request parameters, limits and units.
 
-⸻
+Project and Identity budgets can apply simultaneously.
 
-9. YOUR FIRST TASK — PHASE 1 ONLY
+Agents and folders
 
-Do not implement anything yet.
+Agents can be created through the SDK.
 
-Proceed in this order:
+The path attribute can be used to organize resources under user-specific folders.
 
-1. Inspect LEA_Workspace/lcc/.
-2. Understand the existing LMC business logic.
-3. Inspect LEA_Workspace/use-case-engineering-companion/thales_orq_provisioning/.
-4. Identify the existing Orq.ai SDK integration.
-5. Inspect the installed SDK and its supported operations.
-6. Identify reusable code and integration patterns.
-7. Propose the minimal Mock LMC architecture.
-8. Define the SQLite data models.
-9. Propose the React interface.
-10. Explain the future Orq.ai provisioning workflow.
-11. Identify technical uncertainties.
-12. Propose a step-by-step implementation roadmap.
+The SDK does not expose a verified standalone folder-management API.
 
-Expected Report
+Folders must not be treated as security boundaries.
 
-A. Existing LMC Architecture
+Routing Rules
 
-Relevant functionality, data models and source files.
+Routing Rules can be managed through:
 
-B. Existing Orq.ai SDK Integration
+POST /v2/routing-rules
 
-Package, version, available methods and reusable patterns.
+Relevant fields include:
 
-C. Minimal Mock LMC Scope
+* project_id
+* expression
+* models_config
+* priority
+* enabled
 
-Features to reproduce and exclude.
+Orq.ai Studio provides a Rule Builder supporting conditions based on request attributes, including headers and metadata.
 
-D. Proposed Architecture
+The exact CEL expression should be verified using the configuration generated by Orq Studio.
 
-React, FastAPI and SQLite.
+It remains uncertain whether Routing Rules can modify the underlying LLM of managed agents and delegated sub-agents.
 
-E. Proposed Data Models
+Do not assume this behavior works without validation.
 
-Projects, users, memberships, authorized models, budgets and Orq.ai resource mappings.
+4. IMPORTANT — Testing and validation strategy
 
-F. Orq.ai Provisioning Design
+Do not build automated integration tests for functionality that can be verified manually through Orq.ai Studio.
 
-SDK operations, dependencies, permissions and resource relationships.
+The user will personally perform functional validation in the Orq.ai interface.
 
-G. Technical Risks
+Software Companion should focus on implementation, not on building an extensive automated test infrastructure.
 
-Particularly:
+Manual validation performed by the user
 
-* Project-specific model configurations.
-* Folder creation.
-* Routing Rules compatibility with managed agents.
-* Identity propagation.
-* Budget enforcement.
+The following checks will be performed manually:
 
-H. Implementation Roadmap
+Projects
 
-Small, independently testable phases.
+* Verify that the project appears in Orq.ai.
+* Verify its name and configuration.
 
-I. First Implementation Task
+Models
 
-The smallest development task recommended after this analysis.
+* Verify that custom models were created.
+* Inspect their Access Control settings.
+* Verify which projects can access them.
 
-⸻
+Identities
 
-10. IMPORTANT INSTRUCTIONS
+* Verify that the corresponding Identities exist.
+* Inspect their information in Orq.ai.
 
-* Do not modify existing repositories.
-* Do not create or modify files during this phase.
-* Do not launch or repair LMC.
-* Do not perform Orq.ai write operations.
-* Do not install dependencies.
-* Do not expose credentials or secrets.
-* Use existing SDK implementations as technical references.
-* Do not invent undocumented API functionality.
-* Keep the architecture minimal.
-* Do not implement EAL, Skills, Knowledge Bases or conversations.
-* Clearly distinguish verified behavior from assumptions requiring a POC.
+Budgets
+
+* Verify that project and Identity budgets exist.
+* Inspect their configured limits.
+* Use an agent and manually check whether consumption increases.
+* Verify budget enforcement manually if needed.
+
+Agents and folders
+
+* Verify that the expected user folders appear.
+* Verify that each folder contains the expected agents.
+* Inspect their configurations and relationships.
+
+Routing Rules
+
+* Inspect the created rules in Orq Studio.
+* Configure a test rule manually when appropriate.
+* Execute the relevant agent.
+* Inspect the actual executed model in Orq.ai traces.
+
+Monitoring
+
+* Inspect Identity attribution.
+* Inspect project consumption.
+* Check model usage and costs.
+* Inspect orchestrator and sub-agent traces.
+
+Software Companion does not need to automate these visual and functional checks.
+
+5. When automated tests are acceptable
+
+Automated tests should be used only when:
+
+1. A behavior cannot reasonably be verified manually.
+2. A minimal technical test is required to determine whether a critical feature is supported.
+3. A simple local code-level check is useful to identify an implementation error.
+
+Examples include:
+
+* Checking that the FastAPI application imports correctly.
+* Checking that SQLite operations work.
+* Verifying basic request validation.
+* Executing one targeted API request when a behavior cannot be tested in Orq Studio.
+
+Do not create comprehensive integration test suites, load tests or large automated scenarios.
+
+Do not generate artificial API traffic for budget or monitoring validation.
+
+Do not run concurrent-request tests unless specifically requested.
+
+Before running tests that communicate with Orq.ai, explain why the test is necessary and obtain the user’s approval.
+
+6. Preferred workflow
+
+Work incrementally.
+
+Step 1 — Mock LMC
+
+Implement the minimal React + FastAPI + SQLite application.
+
+Allow project creation, user assignment, model selection and budget configuration.
+
+Step 2 — Project provisioning
+
+Implement project creation through the Orq.ai SDK.
+
+The user will manually verify the result in Orq Studio.
+
+Step 3 — Identities
+
+Implement Identity provisioning.
+
+The user verifies the created Identities.
+
+Step 4 — Budgets
+
+Implement project and Identity budget provisioning.
+
+The user verifies the budgets and their consumption manually.
+
+Step 5 — Models
+
+Implement custom model provisioning and investigate project Access Control.
+
+The user verifies model configuration and access permissions through Orq Studio.
+
+Step 6 — Agents and folders
+
+Implement user-specific agent provisioning.
+
+The user inspects the resulting folder structure.
+
+Step 7 — Routing Rules
+
+Implement routing configuration using verified SDK/API contracts.
+
+The user validates the behavior through Orq Studio.
+
+If a manual check cannot demonstrate the actual model selection, propose the smallest possible targeted technical test.
+
+7. Development rules
+
+* Develop one feature at a time.
+* Keep the implementation minimal.
+* Avoid unnecessary abstractions and infrastructure.
+* Do not modify the existing LMC or Engineering Companion repositories.
+* Reuse existing SDK integration patterns.
+* Do not expose credentials.
+* Do not perform unauthorized operations against Orq.ai.
+* Do not delete existing resources.
+* Implement basic error handling and idempotency.
+* Keep generated resources identifiable as POC resources.
+* Do not create unnecessary test files or automated testing frameworks.
+
+8. Collaboration process
+
+After implementing each feature:
+
+1. Explain what was implemented.
+2. Indicate which files were created or modified.
+3. Explain how to launch or use the feature.
+4. Describe the simple manual verification the user should perform in Orq.ai Studio.
+5. Wait for the user’s feedback before implementing the next feature.
+
+If a technical problem requires an automated test, explain why manual validation is insufficient before proposing the test.
+
+The goal is to build a functional POC efficiently, with Software Companion handling development and the user handling most functional validation.
 
 Respond in French.
