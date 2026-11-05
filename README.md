@@ -1,519 +1,802 @@
-Nous poursuivons le POC mock-lmc-orq-poc.
+Mission — Complete UX/UI Redesign of Mock LMC
 
-Le provisioning réel des projets, Identities, budgets et configurations de modèles Orq.ai fonctionne désormais.
+1. Contexte
 
-Nous voulons maintenant intégrer le provisioning persistant des ressources agentiques, en nous appuyant sur les templates Jira Specialist et GitLab Specialist déjà développés dans les projets LEA.
+Nous développons un POC appelé Mock LMC, situé dans :
 
-Avant d’implémenter, prends connaissance de l’architecture et des conventions ci-dessous. Elles constituent les décisions retenues pour cette étape.
+/workspace/LEA_Workspace/mock-lmc-orq-poc
 
-1. Objectif architectural
+Il simule une partie du LEA Management Center (LMC) et permet à un Project Manager de configurer un projet puis de provisionner automatiquement ses ressources dans Orq.ai.
 
-Le Project Manager configure son projet dans le Mock LMC.
+Le projet utilise actuellement :
 
-Lorsqu’il clique sur « Provisionner tout », le backend crée ou synchronise les ressources Orq.ai correspondantes.
+* React, TypeScript et Vite pour le frontend.
+* FastAPI pour le backend.
+* SQLite pour la persistance.
+* Le SDK Python Orq.ai pour le provisioning.
 
-Le workflow devient :
+Le POC est déjà fonctionnel.
 
-1. Projet Orq.ai.
-2. Identities.
-3. Budgets.
-4. Configurations de modèles.
-5. Ressources Prompt.
-6. Agents personnels, organisés dans les folders utilisateurs.
+Il permet notamment de gérer et provisionner :
 
-Les ressources restent ensuite dans Orq.ai.
+* Les projets Orq.ai.
+* Les utilisateurs synthétiques.
+* Les Identities Orq.ai.
+* Les membres et rôles des projets.
+* Les budgets globaux des projets.
+* Les budgets associés aux Identities.
+* Les configurations de modèles.
+* Les autorisations de modèles côté Mock LMC.
+* Les prompts des agents.
+* Les agents Engineering Companion, Jira Specialist et GitLab Specialist.
+* Les relations entre orchestrateur et sous-agents.
+* Les outils MCP associés aux spécialistes.
 
-Lors d’un nouveau provisioning, les configurations existantes doivent être mises à jour si nécessaire, sans création de doublons.
+Les prompts sont partagés au niveau du projet lorsque cela correspond à l’implémentation actuelle, tandis que les agents sont personnalisés par utilisateur et par projet.
 
-Nous ne voulons aucun provisioning lié aux connexions ou déconnexions des utilisateurs.
+Les agents et les ressources provisionnés sont persistants. Ils ne doivent pas être supprimés à la déconnexion d’un utilisateur.
 
-2. Templates existants à réutiliser
+Lorsque la configuration évolue, le système doit mettre à jour les ressources existantes plutôt que les recréer systématiquement.
 
-Deux projets GitLab contiennent déjà les templates de référence.
+État des fonctionnalités
 
-GitLab Specialist
+Le provisioning des projets, Identities, budgets, modèles, prompts et agents fonctionne déjà.
 
-Dépôt : lea-gitlab-orq-agent
+En revanche :
 
-Fichiers :
+* Le contrôle d’accès natif Orq.ai des modèles n’est pas implémenté.
+* Les autorisations de modèles sont actuellement conservées côté Mock LMC.
+* Les Routing Rules ne sont pas encore intégrées.
+* L’application Engineering Companion n’a pas encore été adaptée pour appliquer ces autorisations.
 
-* workspace/agents/gitlab-specialist.yaml
-* workspace/prompts/gitlab-specialist.yaml
-* workspace/prompts/md/gitlab-specialist-system.md
+Ne considère pas ces fonctionnalités comme opérationnelles.
 
-Jira Specialist
+⸻
 
-Dépôt : lea-jira-orq-agent
+2. Objectif de cette mission
 
-Fichiers attendus :
+Je souhaite une refonte complète de l’expérience utilisateur et de l’interface graphique du Mock LMC.
 
-* workspace/agents/jira-specialist.yaml
-* workspace/prompts/jira-specialist.yaml
-* workspace/prompts/md/jira-specialist-system.md
+Le design actuel est esthétique, mais il présente plusieurs problèmes :
 
-Attention : vérifie le nom réel du YAML agent Jira, car une capture montre un fichier dont le nom semble être gitlab-specialist.yaml alors que son contenu décrit Jira Specialist.
+* Une page principale extrêmement longue.
+* Trop de scrolling.
+* Trop de configurations affichées simultanément.
+* Un panneau latéral qui mélange plusieurs responsabilités.
+* Plusieurs boutons de provisioning qui rendent le parcours peu intuitif.
+* Une distinction peu claire entre configuration locale et ressources réellement provisionnées dans Orq.ai.
+* Une lecture difficile des statuts, des erreurs et des modifications.
+* Une expérience peu adaptée aux changements effectués après un premier provisioning.
 
-Ces dépôts sont visibles dans GitLab interne.
+Je veux que tu abordes cette mission comme un Senior Product Designer / UX Designer spécialisé dans les applications SaaS B2B et les consoles d’administration complexes.
 
-Tu n’as pas nécessairement accès à GitLab depuis l’environnement Software Companion.
+L’objectif n’est pas simplement de rendre l’application plus jolie.
 
-Commence donc par rechercher les fichiers dans les dépôts déjà présents localement dans LEA_Workspace.
+Il faut concevoir une expérience :
 
-S’ils sont accessibles, lis leurs contenus complets.
+* Moderne.
+* Élégante.
+* Professionnelle.
+* Très intuitive.
+* Cohérente.
+* Efficace.
+* Adaptée à la gestion de projets techniques.
+* Facile à comprendre pour un Project Manager.
 
-S’ils ne le sont pas, n’invente pas les fichiers Markdown à partir de leurs noms ou de suppositions.
+Tu disposes d’une liberté importante concernant la mise en page, les composants, l’organisation et les interactions.
 
-Indique-moi simplement quels fichiers doivent être copiés localement.
+En revanche, il faut préserver les fonctionnalités existantes.
 
-Tu peux organiser des copies de référence dans mock-lmc-orq-poc, sans modifier les dépôts sources.
+⸻
 
-Ne réécris pas les prompts spécialisés s’ils sont disponibles.
+3. Direction artistique
 
-3. Structure des YAML existants
+Le design actuel possède déjà une identité visuelle intéressante.
 
-Les YAML agents Jira et GitLab utilisent globalement cette structure :
+Il utilise notamment des teintes vert foncé, des fonds clairs et des accents orangés.
 
-key: DEV_Jira_Specialist
-display_name: DEV_Jira_Specialist
-role: Jira_Specialist
-path: DEV Engineering Companion
-description: >
-  Agent specialized in Jira Tasks
-model: thales-poc@openailike/mistral-small-2603
-knowledge_base_refs: []
-prompt:
-  display_name: DEV_Jira_Specialist
-skills:
-  - display_name: DEV_Test_Skill
-  - display_name: DEV_Test_Skill_Other
-settings:
-  max_iterations: 10
-  max_execution_time: 300
-  tools:
-    - type: current_date
-  guardrail_refs: []
-instructions: ""
+Tu peux conserver et faire évoluer cette direction artistique.
 
-Le YAML GitLab est équivalent, avec les identifiants et descriptions du spécialiste GitLab.
+Je recherche une interface premium, avec une qualité visuelle comparable à celle d’un produit SaaS professionnel moderne.
 
-Les YAML des ressources Prompt utilisent cette structure :
+Principes attendus :
 
-key: jira-specialist-prompt
-display_name: DEV_Jira_Specialist
-path: DEV Engineering Companion
-description: System prompt for the Jira specialist agent
-system_prompt_file: md/jira-specialist-system.md
-prompt:
-  messages:
-    - role: system
-      content: placeholder
+* Design sobre et élégant.
+* Hiérarchie visuelle très claire.
+* Navigation immédiatement compréhensible.
+* Espacements généreux mais maîtrisés.
+* Typographie soignée.
+* Couleurs cohérentes.
+* Cartes et panneaux bien structurés.
+* États interactifs visibles.
+* Animations légères et utiles.
+* Transitions fluides.
+* Icônes cohérentes.
+* Mise en page responsive.
+* Bonne accessibilité et contrastes lisibles.
 
-Le YAML GitLab référence :
+Évite les interfaces trop chargées, les effets décoratifs inutiles et les dashboards remplis de métriques sans intérêt.
 
-md/gitlab-specialist-system.md
+L’objectif est de produire une interface visuellement remarquable mais surtout extrêmement pratique.
 
-IMPORTANT :
+Ne te limite pas à reproduire l’interface actuelle avec des composants plus modernes.
 
-Ces YAML sont des templates provenant des dépôts existants. Ils ne correspondent pas nécessairement directement au schéma des appels API Orq.ai.
+Repense réellement son organisation.
 
-Analyse comment ils étaient destinés à être interprétés par les outils de provisioning existants.
+⸻
 
-Ne transmets pas aveuglément tous leurs champs au SDK.
+4. Nouvelle architecture de navigation
 
-Le champ system_prompt_file doit être résolu vers le contenu réel du Markdown.
+Je souhaite abandonner l’organisation actuelle en une grande page avec un catalogue permanent à droite.
 
-La valeur placeholder ne doit jamais devenir le system prompt final.
+Propose une nouvelle organisation reposant sur une navigation claire.
 
-4. Contenu attendu des prompts spécialisés
+4.1 Navigation globale
 
-Les deux fichiers Markdown sont des system prompts détaillés.
+L’application devrait permettre d’accéder facilement aux espaces suivants :
 
-Ils ne doivent pas être remplacés par de simples descriptions génériques.
+Projects
 
-Jira Specialist
+Liste des projets Mock LMC.
 
-Le prompt définit :
+Pour chaque projet, afficher notamment :
 
-* Un sous-agent spécialisé dans l’analyse des données Jira.
-* Un fonctionnement exclusivement en lecture seule.
-* L’analyse des tickets, sprints, epics, commentaires, statuts, dépendances et blockers.
-* Une hiérarchie entre instructions système, tâche transmise par l’orchestrateur et données retournées par les outils.
-* L’interdiction d’exécuter des instructions trouvées dans des tickets ou commentaires.
-* L’interdiction de créer, modifier, supprimer ou faire évoluer des ressources Jira.
-* La protection des secrets et données sans rapport avec la demande.
-* La gestion des erreurs d’outils, résultats vides et données indisponibles.
-* La distinction entre faits, inférences et informations inconnues.
-* La limitation des recherches aux projets autorisés.
-* L’utilisation de dates explicites, filtres structurés et pagination raisonnable.
-* La restitution d’un rapport Markdown compact avec preuves et références.
+* Nom.
+* Description courte.
+* Statut de configuration/provisioning.
+* Dernière synchronisation, si l’information est disponible.
+* Accès rapide au projet.
 
-Le rapport attendu contient notamment :
+Permettre de créer un nouveau projet facilement.
 
-* Scope.
-* Findings.
-* Blockers / risks.
-* Open loops.
-* Metrics.
-* Limits.
+La création d’un projet doit être simple : nom, description et autres champs réellement nécessaires.
 
-GitLab Specialist
+Après création, rediriger vers son espace de configuration.
 
-Le prompt définit :
+Users
 
-* Un sous-agent spécialisé dans l’analyse des données GitLab.
-* Un fonctionnement exclusivement en lecture seule.
-* L’analyse des merge requests, commits, reviews, discussions, issues, pipelines, jobs et événements CI/CD.
-* Une hiérarchie d’instructions équivalente.
-* La protection contre les instructions malveillantes présentes dans les repositories, commentaires ou logs.
-* L’interdiction de modifier des branches, merge requests, pipelines ou autres ressources GitLab.
-* La protection des secrets et configurations internes.
-* La gestion des erreurs, données manquantes et résultats partiels.
-* La limitation des recherches aux projets et groupes autorisés.
-* La restitution d’informations vérifiables et dédupliquées.
+Catalogue global des utilisateurs synthétiques.
 
-Le rapport attendu contient les mêmes grandes sections que le rapport Jira.
+Permettre :
 
-Ces descriptions permettent de comprendre la finalité des fichiers, mais ne remplacent pas leurs contenus complets.
+* De consulter les utilisateurs.
+* D’en créer.
+* De voir leurs informations principales.
+* De distinguer leur identité locale de leur Identity Orq.ai.
+* De consulter leur statut de provisioning lorsque disponible.
 
-Utilise les Markdown originaux intégralement.
+Ne pas confondre l’utilisateur global et son appartenance à un projet.
 
-Si les fichiers originaux sont introuvables, signale ce blocage avant de créer des agents avec des prompts incomplets.
+Model Catalog
 
-Adaptation de sécurité
+Catalogue global des modèles disponibles.
 
-Les prompts sources prévoient parfois une recherche élargie lorsque le contexte utilisateur ou projet est manquant.
+Permettre :
 
-Pour notre architecture, ne conserve pas un comportement qui élargirait implicitement la recherche à des projets non explicitement autorisés.
+* De consulter les modèles configurés localement.
+* D’ajouter une configuration.
+* De modifier les configurations supportées.
+* De consulter les caractéristiques du modèle.
+* De distinguer les configurations locales des ressources Orq.ai.
 
-Si le périmètre autorisé est absent, le spécialiste doit signaler le contexte manquant sans interroger un périmètre élargi.
+L’interface doit clairement expliquer la différence entre un modèle du catalogue et une configuration de modèle utilisée dans un projet.
 
-Cette adaptation doit rester minimale et identifiable par rapport au template source.
+Conserver l’architecture actuelle et les mécanismes existants de gestion des credentials.
 
-Le contrôle d’autorisation définitif sera assuré par Engineering Companion et ses connecteurs MCP.
+Ne jamais exposer de valeur de clé API dans le frontend.
 
-5. Convention des clés Orq.ai
+⸻
 
-Il faut distinguer les clés des agents et les clés des prompts.
+5. Espace de gestion d’un projet
 
-Clés des agents
+Lorsqu’un Project Manager ouvre un projet, il doit accéder à un espace dédié.
 
-Chaque utilisateur possède ses propres agents dans chaque projet.
+Je propose une navigation interne comprenant :
 
-La clé doit donc identifier :
+1. Overview
+2. Members
+3. Models
+4. Budgets
+5. Agents
+6. Provisioning
 
-* Le projet LMC.
-* L’utilisateur.
-* Le rôle de l’agent.
+Tu peux ajuster les noms et l’organisation si cela améliore réellement l’expérience.
 
-Convention proposée :
+5.1 Overview
 
-ec-p-{project_uuid}-u-{user_uuid}-{role}
+Cette page est le tableau de bord principal du projet.
 
-Rôles :
+Elle doit permettre de comprendre immédiatement :
 
-* engineering-companion
-* jira-specialist
-* gitlab-specialist
+* Quel projet est sélectionné.
+* Son état actuel.
+* S’il a déjà été provisionné.
+* Si des modifications doivent être synchronisées.
+* Combien d’utilisateurs sont membres.
+* Combien de modèles sont associés.
+* Combien d’agents sont provisionnés.
+* Si les budgets sont configurés.
+* Si des erreurs de provisioning nécessitent une intervention.
 
-Utilise les identifiants stables des entités SQLite, normalisés dans un format accepté par Orq.ai.
+Ces informations doivent être récupérées depuis l’état réel disponible dans l’application.
 
-Ne construis jamais une clé fonctionnelle à partir du nom affiché de l’utilisateur ou du projet.
+Ne pas inventer de statistiques.
 
-Respecte les contraintes de longueur et de caractères du SDK.
+Présenter un récapitulatif élégant avec quelques cartes et indicateurs pertinents.
 
-Une même combinaison projet + utilisateur + rôle doit toujours produire exactement la même clé.
+Ajouter des raccourcis vers les configurations à compléter.
 
-Clés des prompts
+Prévoir une action principale clairement identifiable :
 
-Les prompts spécialisés sont initialement identiques pour tous les utilisateurs d’un même projet.
+Provisionner si le projet n’a jamais été provisionné.
 
-Nous préférons donc des ressources Prompt partagées au niveau du projet plutôt que des copies inutiles pour chaque utilisateur.
+Synchroniser si des modifications doivent être appliquées.
 
-Convention :
+Lorsque le projet est déjà à jour, afficher cet état clairement.
 
-ec-p-{project_uuid}-prompt-jira-specialist
+5.2 Members
 
-ec-p-{project_uuid}-prompt-gitlab-specialist
+Créer une vraie interface de gestion des membres du projet.
 
-L’unicité doit rester garantie même lorsque plusieurs projets utilisent les mêmes templates.
+Elle doit permettre :
 
-Vérifie si le SDK permet réellement d’associer une ressource Prompt partagée à plusieurs agents.
+* D’ajouter un utilisateur existant.
+* De définir son rôle.
+* De consulter les membres.
+* De modifier les rôles.
+* De retirer un membre lorsque cette opération est supportée.
+* De configurer les modèles autorisés.
+* De sélectionner le modèle par défaut des agents, parmi les modèles autorisés.
+* D’accéder facilement au budget Identity associé.
 
-Si cette association n’est pas supportée, utilise le mécanisme API officiellement disponible pour renseigner le contenu complet du system prompt sur chaque agent.
+Éviter les très grandes cartes verticales répétées pour chaque utilisateur.
 
-Dans les deux cas, conserve une seule source de vérité pour chaque template Markdown et évite les duplications de maintenance.
+Préférer une présentation compacte et lisible : tableau moderne, liste structurée ou cartes avec détails repliables.
 
-6. Display names et rôles
+Par exemple, un tableau affichant :
 
-Les display names peuvent rester simples :
+User	Role	Authorized Models	Default Model	Identity	Actions
 
-* Engineering Companion
-* Jira Specialist
-* GitLab Specialist
+Cliquer sur un utilisateur pourrait ouvrir un panneau latéral contextuel ou une vue détaillée.
 
-Ils ne servent pas d’identifiants techniques.
+Ce panneau permettrait de modifier ses paramètres sans encombrer la page principale.
 
-Les rôles des agents doivent correspondre à leur spécialisation.
+Attention : les autorisations de modèles restent pour l’instant des configurations Mock LMC. Elles ne sont pas encore appliquées par Engineering Companion.
 
-Une modification de display name ne doit pas provoquer la création d’un nouvel agent.
+Ne pas présenter cela comme une protection effective de l’accès aux modèles.
 
-7. Organisation des folders
+5.3 Models
 
-Nous avons retenu un projet Orq.ai par projet LMC.
+Créer une interface dédiée aux modèles disponibles dans le projet.
 
-Les agents personnels doivent être organisés dans des folders utilisateurs.
+Elle doit présenter :
 
-Exemple conceptuel :
+* Les modèles sélectionnés dans le catalogue.
+* Leur configuration runtime.
+* Leur état de provisioning Orq.ai.
+* Leur disponibilité pour les membres du projet.
+* Les éventuelles erreurs de configuration.
 
-Projet Orq.ai : Satellite
-|
-|-- templates/
-|   |-- Jira Specialist Prompt
-|   |-- GitLab Specialist Prompt
-|
-|-- users/
-    |-- user-abc123/
-    |   |-- Engineering Companion
-    |   |-- Jira Specialist
-    |   |-- GitLab Specialist
-    |
-    |-- user-def456/
-        |-- Engineering Companion
-        |-- Jira Specialist
-        |-- GitLab Specialist
+Séparer clairement :
 
-Les noms des folders doivent être dérivés d’identifiants stables.
+Catalogue de modèles : définitions réutilisables.
 
-Vérifie le comportement réel du champ path dans le SDK et selon la portée de la clé API.
+Configuration de projet : instance/configuration associée à un projet LMC.
 
-Attention à ne pas ajouter deux fois le nom du projet dans le path.
+Autorisations utilisateurs : modèles que chaque utilisateur peut sélectionner dans Engineering Companion.
 
-Utilise la création implicite des dossiers par les ressources si c’est le mécanisme supporté.
+Ces trois notions ne doivent plus être mélangées.
 
-N’invente pas d’API de création ou suppression de folders.
+Les détails techniques comme Base URL, provider, Model ID, type, température, max tokens et capacités doivent être accessibles dans un formulaire clair.
 
-Les folders servent uniquement à organiser les ressources. Ils ne garantissent pas l’isolation entre utilisateurs.
+Ne pas demander à l’utilisateur de saisir plusieurs fois les mêmes informations.
 
-8. Stratégie de modèles
+Ne pas afficher les credentials.
 
-Les modèles ont déjà été provisionnés par notre Mock LMC.
+Les clés et références techniques peuvent apparaître dans une section avancée lorsque cela est utile.
 
-Les nouveaux agents doivent utiliser les configurations réelles existantes dans Orq.ai.
+5.4 Budgets
 
-Ne conserve pas le modèle codé en dur dans les YAML sources.
+Créer une page dédiée aux budgets.
 
-Pour cette étape, nous retenons :
+Distinguer clairement :
 
-Un ensemble de trois agents persistants par couple projet-utilisateur.
+Project Budget
 
-Le Mock LMC doit pouvoir définir un modèle par défaut pour cet utilisateur dans le projet.
+Budget associé au projet Orq.ai.
 
-Ce modèle doit nécessairement appartenir aux modèles autorisés pour cet utilisateur.
+Identity Budgets
 
-Pour le premier POC, Engineering Companion, Jira Specialist et GitLab Specialist peuvent partager ce même modèle.
+Budgets associés aux Identities des utilisateurs.
 
-Si aucun modèle par défaut valide n’est défini, le provisioning des agents concernés doit être bloqué avec un message explicite.
+Une Identity peut être réutilisée entre plusieurs projets. Ne pas présenter son budget global comme un budget indépendant propre à chaque projet si ce n’est pas le cas.
 
-N’utilise pas arbitrairement le premier modèle trouvé.
+Prévoir des formulaires simples pour modifier :
 
-Lors d’une modification du modèle par défaut dans le Mock LMC, le provisioning suivant doit mettre à jour les configurations existantes, sans créer de nouveaux agents.
+* Le plafond financier.
+* La limite de tokens.
+* La limite de requêtes.
+* La période.
 
-La sélection dynamique d’un modèle pendant une conversation Engineering Companion sera étudiée dans une étape ultérieure.
+Afficher clairement :
 
-N’implémente pas encore les Routing Rules.
+* La configuration enregistrée.
+* L’état de provisioning.
+* Les éventuelles modifications en attente.
+* Les erreurs.
 
-Ne suppose pas qu’une Routing Rule s’applique automatiquement aux appels internes des agents.
+Si les données de consommation réelle sont disponibles, elles pourront être affichées.
 
-N’utilise pas de mise à jour concurrente d’un agent partagé pour simuler un changement de modèle à chaque requête.
+Sinon, ne pas inventer de jauges de consommation.
 
-Si cette stratégie de sélection dynamique n’est pas viable, nous étudierons plus tard la création persistante d’un ensemble d’agents par modèle autorisé.
+Ne pas transformer cette mission en développement d’un système complet de monitoring.
 
-9. Paramètres des agents
+5.5 Agents
 
-Réutilise les paramètres des templates lorsque leur compatibilité SDK est confirmée.
+Créer une section dédiée à l’architecture agentique provisionnée.
 
-Notamment :
+Cette section doit permettre de comprendre facilement les agents associés au projet et aux utilisateurs.
 
-* max_iterations: 10
-* max_execution_time: 300
+L’architecture actuelle comprend :
 
-Retire pour cette première version :
+Engineering Companion
+→ Jira Specialist
+→ GitLab Specialist
 
-* Les Skills de test DEV_Test_Skill et DEV_Test_Skill_Other.
-* Les références Knowledge Base.
-* Les outils MCP Jira et GitLab.
-* Les dépendances à des ressources non encore provisionnées.
+Engineering Companion est l’orchestrateur.
 
-Conserve les éventuels outils natifs simples uniquement s’ils sont disponibles et compatibles.
+Jira Specialist et GitLab Specialist sont des sous-agents.
 
-Ne crée pas de faux outils pour remplir les configurations.
+Les spécialistes sont configurés avec leurs outils MCP.
 
-Les prompts doivent rester cohérents avec l’absence temporaire d’outils métier : les agents ne doivent jamais inventer des données Jira ou GitLab.
+Les agents sont personnalisés par utilisateur et par projet.
 
-10. Agent Engineering Companion
+Les prompts peuvent être partagés au niveau du projet conformément à l’implémentation actuelle.
 
-Nous avons également besoin d’un agent principal Engineering Companion par utilisateur.
+Visualisation
 
-Il est destiné à devenir l’orchestrateur des spécialistes Jira et GitLab.
+Je souhaite une représentation visuelle élégante de cette architecture.
 
-Commence par rechercher un éventuel template Engineering Companion existant dans les dépôts locaux.
+Par exemple :
 
-S’il existe, examine-le et réutilise sa configuration adaptée.
+Engineering Companion
+├── Jira Specialist
+│   └── Jira MCP Tools
+└── GitLab Specialist
+└── GitLab MCP Tools
 
-Sinon, pour ce POC, une configuration minimale explicitement identifiée comme provisoire suffit.
+Il ne s’agit pas nécessairement de développer un éditeur de graphes complexe.
 
-Ne fabrique pas un prompt métier complexe.
+Une visualisation statique ou semi-dynamique, construite à partir des données disponibles, suffit pour ce POC.
 
-Ne configure pas encore les délégations entre agents si cela nécessite des mécanismes supplémentaires.
+L’utilisateur doit pouvoir :
 
-L’objectif de cette étape est d’abord de provisionner les ressources correctement.
+* Sélectionner un membre du projet.
+* Voir ses agents.
+* Voir le modèle configuré pour ces agents.
+* Comprendre les relations entre orchestrateur et spécialistes.
+* Consulter le statut de provisioning.
+* Accéder aux détails techniques si nécessaire.
 
-11. Synchronisation et idempotence
+Ne pas afficher des connexions fictives.
 
-Réutilise le système de provisioning et la base SQLite déjà implémentés.
+Ne pas rendre éditables des paramètres qui ne sont pas réellement modifiables dans le backend.
 
-Pour chaque ressource, conserve au minimum les informations nécessaires pour retrouver :
+Les Skills, les Knowledge Bases et les Routing Rules ne sont pas dans le périmètre de cette refonte.
 
-* Le projet LMC.
-* Le projet Orq.ai.
-* L’utilisateur concerné, si applicable.
-* Le type de ressource.
-* Son rôle.
-* Sa clé fonctionnelle Orq.ai.
-* Son identifiant Orq.ai.
-* L’empreinte de sa configuration souhaitée.
-* Son statut de provisioning.
+⸻
 
-Le provisioning doit effectuer une réconciliation :
+6. Repenser complètement le parcours de provisioning
 
-* Ressource inexistante : création.
-* Ressource existante et configuration identique : aucune modification.
-* Ressource existante et configuration modifiée : mise à jour.
-* Erreur après création : tentative de récupération par clé avant toute nouvelle création.
-* Collision avec une ressource qui n’appartient pas au POC : ne pas écraser, signaler l’erreur.
+C’est l’une des parties les plus importantes de la mission.
 
-Les prompts doivent être synchronisés à partir du contenu complet des fichiers Markdown.
+6.1 Principe fonctionnel
 
-Un changement de prompt doit être détecté et répercuté sur les agents qui l’utilisent.
+Le Project Manager doit pouvoir :
 
-Ne mets pas systématiquement à jour toutes les ressources à chaque clic.
+1. Créer un projet.
+2. Ajouter ses membres.
+3. Associer les modèles.
+4. Configurer les autorisations et les modèles par défaut.
+5. Définir les budgets.
+6. Vérifier la configuration des agents.
+7. Cliquer sur un bouton principal pour provisionner l’ensemble.
 
-Ne supprime aucune ressource existante dans cette étape.
+Le backend est responsable de l’orchestration des ressources Orq.ai.
 
-Si un utilisateur est retiré du projet, signale ses ressources comme nécessitant une politique de désactivation ou de nettoyage ultérieure, sans suppression automatique.
+Le Project Manager ne doit pas avoir besoin de connaître l’ordre technique de création des ressources.
 
-12. Gestion des modifications des templates
+6.2 Une seule action principale
 
-Les fichiers YAML et Markdown constituent les templates de référence.
+Conserver une action principale :
 
-Les valeurs suivantes doivent être injectées dynamiquement :
+Provisionner / Synchroniser
 
-* Clé de la ressource.
-* Path Orq.ai.
-* Référence du modèle.
-* Référence du prompt.
-* Identifiants projet et utilisateur nécessaires.
+L’interface doit adapter son libellé au contexte.
 
-Les valeurs suivantes peuvent rester communes :
+Les actions individuelles actuellement disponibles pour provisionner les modèles, les Identities, les budgets, les prompts ou les agents ne doivent plus être omniprésentes.
 
-* Display name.
-* Rôle.
-* Description métier.
-* Instructions spécialisées.
-* Paramètres d’exécution compatibles.
+Elles peuvent être conservées dans des actions avancées si cela est nécessaire au développement ou au diagnostic.
 
-Ne modifie jamais les dépôts originaux pour générer les variantes utilisateurs.
+Elles ne doivent plus structurer le parcours utilisateur principal.
 
-Prépare les configurations en mémoire, ou dans des fichiers de travail propres au POC si cela facilite l’implémentation.
+Ne pas supprimer leurs fonctionnalités backend.
 
-Évite de générer des dizaines de YAML permanents simplement pour provisionner plusieurs utilisateurs.
+6.3 Prévisualisation avant provisioning
 
-Les mappings durables doivent rester dans SQLite.
+Avant le provisioning, afficher un récapitulatif des ressources concernées.
 
-13. Intégration au Mock LMC
+Par exemple :
 
-Conserve le bouton « Provisionner tout ».
+* Projet Orq.ai.
+* Identities.
+* Budgets.
+* Modèles.
+* Prompts.
+* Agents par utilisateur.
 
-Il doit désormais inclure la création/synchronisation des prompts et agents après les modèles.
+Lorsque l’application sait déterminer les opérations à effectuer, indiquer :
 
-Il doit permettre de visualiser les ressources créées et les éventuelles erreurs.
+* À créer.
+* À mettre à jour.
+* Déjà à jour.
+* Non configuré.
+* Erreur ou configuration invalide.
 
-N’ajoute pas de simulation de connexion utilisateur.
+Attention : ne pas inventer de moteur de comparaison.
 
-N’ajoute pas de nouvelle authentification.
+Si le backend ne dispose pas encore de toutes les informations nécessaires pour garantir un vrai diff entre l’état local et Orq.ai, afficher uniquement ce qui peut être déterminé de manière fiable.
 
-Ne refonds pas l’interface existante.
+Identifier les éventuels besoins backend au lieu de simuler une synchronisation exacte.
 
-Ajoute uniquement les éléments nécessaires pour choisir explicitement le modèle par défaut d’un utilisateur, afficher les statuts et déclencher le provisioning.
+6.4 Progression
 
-14. Contraintes d’implémentation
+Lors du provisioning, afficher une interface de progression claire.
 
-Travaille uniquement dans :
+Exemple :
 
-LEA_Workspace/mock-lmc-orq-poc
+Project — Succeeded
 
-Tu peux lire les autres dépôts du workspace mais tu ne dois pas les modifier.
+Identities — Succeeded
 
-Réutilise les patterns déjà opérationnels du POC, notamment ceux du SDK Orq.ai.
+Budgets — Succeeded
 
-Si nécessaire, consulte également le POC existant :
+Models — Succeeded
 
-LEA_Workspace/use-case-engineering-companion/thales_orq_provisioning
+Prompts — Succeeded
 
-Ne modifie ni le LMC réel dans LEA_Workspace/lcc, ni le backend Engineering Companion.
+Agents — In Progress
 
-N’ajoute pas de dépendance ou infrastructure inutile.
+Cette progression doit refléter les véritables étapes et statuts renvoyés par le backend.
 
-N’implémente pas encore :
+Si le backend actuel ne permet pas un suivi temps réel, proposer une présentation honnête et simple, sans inventer d’événements ni de pourcentages.
 
-* EAL.
-* Skills.
-* Knowledge Bases.
-* MCP Jira/GitLab.
-* Routing Rules.
-* Sessions éphémères.
-* Suppression automatique des agents.
+6.5 Gestion des erreurs
 
-Ne journalise jamais les clés API ou autres secrets.
+Les erreurs doivent être compréhensibles.
 
-Ne lance aucune opération réelle de création ou modification dans Orq.ai sans mon autorisation.
+Éviter d’afficher uniquement :
 
-15. Vérification
+FAILED
 
-Je souhaite effectuer manuellement les validations fonctionnelles dans Orq Studio.
+ou :
 
-Une fois l’implémentation terminée, je vérifierai :
+502 Bad Gateway
 
-1. Que les prompts Jira et GitLab ont été correctement intégrés.
-2. Que leur contenu correspond aux Markdown de référence.
-3. Que les agents sont créés dans le bon projet.
-4. Que chaque utilisateur possède ses agents dans son folder.
-5. Que les clés restent uniques et stables.
-6. Que les agents utilisent le modèle autorisé configuré.
-7. Qu’un deuxième provisioning ne crée pas de doublons.
-8. Qu’une modification de modèle ou de prompt déclenche une mise à jour correcte.
+Préférer des messages contextualisés.
 
-Ne développe pas de tests automatisés effectuant des appels réels à Orq.ai pour vérifier ces éléments.
+Par exemple :
 
-Les vérifications automatiques locales doivent rester limitées aux aspects nécessaires au bon fonctionnement du code.
+Impossible de provisionner le modèle
 
-16. Résultat attendu
+La configuration du fournisseur semble incomplète.
 
-Je veux pouvoir :
+Vérifiez les paramètres du modèle puis réessayez.
 
-* Configurer mon projet et ses utilisateurs dans le Mock LMC.
-* Choisir les modèles autorisés et le modèle par défaut de chaque utilisateur.
-* Cliquer sur « Provisionner tout ».
-* Retrouver dans Orq.ai les prompts et les agents personnels provisionnés.
-* Modifier une configuration dans le Mock LMC.
-* Cliquer de nouveau sur « Provisionner tout » pour synchroniser les changements.
+Ou :
 
-Commence par inspecter les sources et les mécanismes du SDK.
+Erreur lors de la synchronisation d’un agent
 
-Si les templates Jira/GitLab ne sont pas accessibles localement, indique-moi précisément les fichiers manquants avant de provisionner les prompts.
+L’agent Jira Specialist de cet utilisateur n’a pas pu être mis à jour.
 
-Ensuite, implémente cette étape en respectant les conventions et décisions ci-dessus.
+Les autres ressources correctement provisionnées restent disponibles.
 
-À la fin, présente-moi brièvement les modifications effectuées et la procédure de validation manuelle.
+Prévoir un accès aux détails techniques pour le développeur.
 
-Réponds en français.
+Ne jamais afficher les secrets ou tokens dans ces détails.
+
+Ne pas masquer les erreurs réelles derrière des messages trompeurs.
+
+6.6 Gestion des modifications
+
+Après un premier provisioning, le Project Manager doit pouvoir modifier une configuration.
+
+Par exemple :
+
+* Ajouter un utilisateur.
+* Modifier un rôle.
+* Changer un modèle autorisé.
+* Modifier le modèle par défaut d’un utilisateur.
+* Modifier un budget.
+* Modifier une configuration de modèle.
+
+L’interface doit distinguer clairement :
+
+Configuration enregistrée localement
+
+et
+
+Configuration synchronisée avec Orq.ai
+
+Lorsque des modifications nécessitent une nouvelle synchronisation, afficher un indicateur visible.
+
+Éviter toute ambiguïté entre sauvegarder et provisionner.
+
+Une modification locale ne doit pas déclencher automatiquement une opération Orq.ai sans que cela corresponde explicitement au comportement retenu.
+
+Le provisioning doit rester persistant et idempotent.
+
+Les mises à jour doivent réutiliser les ressources existantes lorsque les mécanismes backend le permettent.
+
+Ne pas introduire de suppression automatique des agents à la déconnexion.
+
+⸻
+
+7. États et feedback utilisateur
+
+Je souhaite une expérience particulièrement soignée concernant les statuts et les interactions.
+
+Prévoir des états visuels cohérents pour :
+
+* Not configured.
+* Ready to provision.
+* Provisioning.
+* Provisioned / In sync.
+* Changes pending.
+* Partially failed.
+* Failed.
+
+Ne pas baser ces états uniquement sur des suppositions frontend.
+
+Ils doivent correspondre aux informations réellement connues.
+
+Notifications
+
+Ajouter des notifications discrètes et élégantes pour les actions importantes :
+
+* Projet créé.
+* Configuration enregistrée.
+* Utilisateur ajouté.
+* Modèle associé.
+* Budget modifié.
+* Provisioning réussi.
+* Provisioning échoué.
+* Synchronisation nécessaire.
+
+Formulaires
+
+Ajouter :
+
+* Validation des champs.
+* Messages d’erreur contextualisés.
+* Indication des champs obligatoires.
+* États de chargement.
+* Désactivation des boutons pendant les requêtes.
+* Protection contre les doubles clics.
+* Messages de succès.
+* Gestion des réponses réseau en erreur.
+* Confirmation des opérations destructrices.
+* Avertissement en cas de modifications locales non enregistrées.
+
+Les erreurs doivent rester visibles tant qu’elles n’ont pas été comprises ou résolues.
+
+Détails techniques
+
+Les identifiants Orq.ai, clés fonctionnelles, références de modèles et informations techniques ne doivent plus dominer l’interface.
+
+Les conserver accessibles dans un panneau de détails, une section avancée ou un bouton de copie.
+
+Ne pas supprimer ces informations : elles restent utiles pour le diagnostic.
+
+⸻
+
+8. Améliorations ergonomiques supplémentaires
+
+Tu peux proposer et implémenter des améliorations UX simples lorsqu’elles apportent une valeur réelle.
+
+Quelques idées :
+
+* Recherche et filtrage des projets.
+* Recherche dans les membres.
+* Navigation par onglets.
+* Panneaux de détails contextuels.
+* Confirmation des actions importantes.
+* Navigation de retour claire.
+* Breadcrumbs.
+* Indicateurs de configuration incomplète.
+* Empty states soignés.
+* Tooltips expliquant les termes techniques.
+* Boutons de copie pour les identifiants.
+* Skeleton loaders.
+* Affichage compact des utilisateurs.
+* Résumé des dernières opérations.
+* Actualisation des statuts après une opération.
+* Différenciation visuelle entre ressources locales et ressources Orq.ai.
+
+Ces améliorations doivent rester proportionnées au POC.
+
+Ne transforme pas l’application en une plateforme d’administration générique beaucoup plus complexe.
+
+⸻
+
+9. Contraintes techniques importantes
+
+Préserver l’existant
+
+Cette mission est principalement une refonte frontend.
+
+Il faut absolument préserver le fonctionnement actuel du provisioning.
+
+Ne pas réécrire inutilement :
+
+* Les services Orq.ai.
+* Le système de mapping SQLite.
+* Les opérations idempotentes déjà fonctionnelles.
+* La gestion des Identities.
+* La gestion des budgets.
+* Le provisioning des modèles.
+* Le provisioning des prompts.
+* Le provisioning des agents.
+* Les relations entre les agents.
+* Les mécanismes de configuration des outils MCP.
+
+Réutiliser les API backend existantes.
+
+Des adaptations backend minimales sont acceptables lorsqu’elles sont réellement nécessaires pour offrir une UX cohérente.
+
+Dans ce cas, les justifier et éviter les modifications disproportionnées.
+
+Ne pas inventer de nouveaux endpoints sans avoir inspecté les routes existantes.
+
+Configuration et sécurité
+
+Ne pas modifier les fichiers .env contenant des credentials.
+
+Ne pas afficher les secrets dans le frontend.
+
+Ne pas journaliser les API keys.
+
+Ne pas modifier inutilement Docker Compose ni les Dockerfiles.
+
+Ne pas ajouter de dépendances volumineuses si elles ne sont pas nécessaires.
+
+Ne pas utiliser de services externes de design ou d’API.
+
+Le développement doit être réalisable avec les ressources locales disponibles.
+
+Hors périmètre
+
+Ne pas implémenter dans cette mission :
+
+* L’intégration réelle avec Engineering Companion.
+* Les Routing Rules.
+* L’EAL.
+* Le provisioning des Skills.
+* Les Knowledge Bases.
+* L’authentification SSO réelle.
+* Un nouveau système de permissions backend.
+* Un nouveau moteur de monitoring.
+* Une architecture distribuée.
+* Une refonte des templates d’agents.
+
+Ne pas toucher aux autres dépôts sans nécessité.
+
+⸻
+
+10. Méthode de travail attendue
+
+Je souhaite que tu procèdes comme un développeur frontend senior travaillant avec un UX designer expérimenté.
+
+Phase A — Audit de l’interface
+
+Commence par examiner :
+
+* La structure du frontend.
+* Les composants React existants.
+* Les styles.
+* Les routes API.
+* Les objets métier.
+* Les formulaires.
+* Les actions de provisioning.
+* Les états de chargement et d’erreur.
+
+Identifie les éléments qui peuvent être réutilisés.
+
+Détermine les limites des données réellement exposées par le backend.
+
+Ne présume pas qu’un statut ou une fonctionnalité est disponible sans l’avoir vérifié dans le code.
+
+Phase B — Architecture UX
+
+Définis brièvement la nouvelle architecture de navigation et les composants principaux.
+
+Privilégie une organisation claire, modulaire et extensible.
+
+Ne reste pas bloqué dans une longue phase de réflexion théorique.
+
+L’objectif est de produire une interface fonctionnelle.
+
+Phase C — Implémentation
+
+Implémente la nouvelle interface.
+
+Tu peux modifier largement le frontend et son organisation.
+
+Tu dois conserver les fonctionnalités existantes.
+
+Utilise des composants réutilisables, des styles cohérents et une gestion propre des états.
+
+Évite un composant React gigantesque qui centralise toute l’application.
+
+Phase D — Vérification
+
+Vérifie :
+
+* La compilation TypeScript.
+* Le build frontend.
+* Les éventuels tests frontend disponibles.
+* La cohérence des appels vers les endpoints existants.
+* L’absence de régression évidente.
+
+Ne lance pas automatiquement de provisioning réel Orq.ai pour tester l’interface.
+
+Ne multiplie pas les tests nécessitant des environnements ou des credentials externes.
+
+Je réaliserai moi-même les validations fonctionnelles dans le navigateur et les vérifications des ressources dans Orq Studio.
+
+Ne supprime aucune ressource Orq.ai existante.
+
+⸻
+
+11. Critères de réussite
+
+La refonte sera considérée comme réussie si :
+
+1. L’application possède une identité visuelle premium et cohérente.
+2. Il n’est plus nécessaire de parcourir une immense page pour administrer un projet.
+3. Les utilisateurs, modèles, budgets et agents sont organisés dans des sections clairement séparées.
+4. Le Project Manager comprend immédiatement l’état de son projet.
+5. Il sait quelles configurations doivent encore être complétées.
+6. Il peut enregistrer ses modifications sans confusion.
+7. Il distingue clairement les données locales des ressources provisionnées dans Orq.ai.
+8. Le provisioning complet constitue l’action principale de l’application.
+9. Les succès, erreurs et modifications en attente sont clairement visibles.
+10. Les informations techniques restent disponibles sans encombrer l’interface.
+11. Les fonctionnalités de provisioning existantes continuent de fonctionner.
+12. Le résultat ressemble à une véritable console professionnelle de gestion de projets IA.
+
+⸻
+
+12. Priorité absolue
+
+Je préfère une interface réellement agréable et intuitive plutôt qu’une accumulation de fonctionnalités supplémentaires.
+
+Le plus important est de créer un parcours cohérent :
+
+Créer un projet → Configurer → Vérifier → Provisionner → Consulter → Modifier → Synchroniser.
+
+Ce parcours doit devenir le principe central de l’application.
+
+Conserve l’approche actuelle de provisioning persistant : les ressources Orq.ai restent créées et sont mises à jour lorsque les configurations changent.
+
+Tu disposes d’une réelle liberté créative sur le design.
+
+Ne conserve pas l’ancienne structure simplement par facilité.
+
+Je veux une véritable refonte UX/UI, pas un simple nettoyage CSS.
+
+En revanche, ne sacrifie jamais la fiabilité du provisioning existant pour améliorer l’apparence.
+
+Commence par auditer rapidement l’application, puis implémente la nouvelle interface en restant concentré sur ce périmètre.
+
+À la fin, résume les principales améliorations, les fichiers modifiés, les vérifications réalisées et les éventuelles limites fonctionnelles qui subsistent.
