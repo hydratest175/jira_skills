@@ -1,208 +1,198 @@
-Mission — Découverte de la codebase et lancement local d’Engineering Companion
+Mission — Première communication entre Mock LMC et Engineering Companion
 
 Contexte
 
-Nous avons développé un Mock LMC capable de provisionner des ressources Orq.ai : projets, Identities, budgets, modèles, prompts et agents.
+Nous avons désormais deux applications fonctionnelles en local :
 
-Le Mock LMC fonctionne désormais correctement en local avec Docker Compose.
+1. Mock LMC : gestion des projets, utilisateurs, autorisations et provisioning des ressources Orq.ai.
+2. Engineering Companion : application React/FastAPI utilisant les agents Orq.ai.
 
-Nous souhaitons prochainement intégrer ce Mock LMC à Engineering Companion.
+Tu as déjà analysé la codebase d’Engineering Companion et tu es parvenu à lancer l’application localement.
 
-Cependant, avant toute intégration, je veux que tu comprennes parfaitement la codebase d’Engineering Companion et que tu sois capable de lancer l’application en local.
+Nous pouvons donc commencer progressivement leur intégration.
 
-Cette mission est exclusivement consacrée à la découverte et à l’exécution locale.
+Cette mission concerne exclusivement la communication entre les deux backends et la récupération des configurations.
 
-Ne commence aucune intégration entre les deux applications.
+Ne modifie pas encore l’exécution des agents ni le fonctionnement du chat.
 
-1. Analyser la codebase d’Engineering Companion
+1. Objectif
 
-Commence par retrouver le dépôt Engineering Companion dans le workspace existant.
+Permettre au backend Engineering Companion de récupérer les configurations enregistrées dans le Mock LMC.
 
-Explore sa structure et comprends son architecture.
+À partir d’un utilisateur identifié, nous souhaitons pouvoir retrouver :
 
-Je souhaite notamment que tu identifies :
+* Les projets auxquels il appartient.
+* Son rôle dans chaque projet.
+* Les modèles disponibles dans chaque projet.
+* Les modèles qui lui sont réellement autorisés.
+* Son modèle par défaut.
+* L’état de provisioning du projet.
+* Les agents Orq.ai déjà provisionnés pour ce couple utilisateur/projet.
+* La référence exacte de son orchestrateur Engineering Companion.
 
-* Le fonctionnement général d’Engineering Companion.
-* Les fonctionnalités déjà implémentées.
-* L’architecture frontend.
-* L’architecture backend.
-* Les principaux composants React.
-* Les endpoints FastAPI.
-* Les mécanismes d’authentification.
-* Les dépendances techniques.
-* Les configurations d’environnement.
-* Les interactions avec Orq.ai.
-* La manière dont les agents sont actuellement sélectionnés et exécutés.
-* Le fonctionnement de l’orchestrateur et des spécialistes Jira/GitLab.
-* Les mécanismes d’intégration MCP.
-* Les éventuelles dépendances avec LMC.
+Les identifiants d’agents doivent provenir des mappings existants du Mock LMC.
 
-Examine également la configuration Docker existante, les Dockerfiles, les fichiers Compose, les éventuels devcontainers et les scripts de lancement.
+Ne pas reconstruire approximativement les clés Orq.ai.
 
-Je veux que tu comprennes comment l’application a été conçue et comment elle est censée démarrer.
+2. Commencer par inspecter l’existant
 
-Ne réécris aucun composant à ce stade.
+Avant toute modification, analyse :
 
-2. Identifier la procédure de lancement local
+Côté Mock LMC
 
-Après cette analyse, identifie la meilleure manière de lancer Engineering Companion dans notre environnement actuel.
+* Les endpoints FastAPI existants.
+* Les modèles SQLAlchemy.
+* Les memberships.
+* Les autorisations de modèles.
+* Les configurations des modèles par projet.
+* Les mappings des ressources Orq.ai.
+* Les références des agents personnels.
+* Les statuts de synchronisation.
 
-Nous travaillons dans un VS Code Dev Container, avec Docker disponible.
+Côté Engineering Companion
 
-Le Mock LMC utilise déjà Docker Compose.
+* L’identification actuelle des utilisateurs.
+* L’authentification Keycloak existante.
+* La gestion actuelle des projets.
+* Les éventuelles intégrations LMC déjà présentes.
+* Les services et clients HTTP existants.
+* La manière dont les agents Orq.ai sont actuellement référencés.
 
-Privilégie donc une exécution Docker pour Engineering Companion si le dépôt contient une configuration adaptée.
+Attention : Engineering Companion possède potentiellement déjà des mécanismes d’intégration LMC.
 
-Tu peux également utiliser une autre méthode si elle est plus simple et mieux adaptée au projet existant.
+Réutilise-les lorsqu’ils sont adaptés plutôt que de créer une architecture parallèle inutile.
 
-L’objectif est de disposer d’une procédure de lancement fiable et reproductible.
+3. Définir un contrat de lecture
 
-Avant de lancer quoi que ce soit :
+Nous souhaitons une communication REST entre les deux backends.
 
-* Vérifie les services nécessaires.
-* Vérifie les ports utilisés.
-* Vérifie les images Docker disponibles.
-* Vérifie les fichiers de configuration.
-* Identifie les éventuelles dépendances externes.
-* Vérifie si le frontend et le backend peuvent fonctionner indépendamment.
+Le Mock LMC doit exposer les informations nécessaires à Engineering Companion.
 
-Attention aux conflits de ports avec le Mock LMC, qui utilise déjà les ports 5173 et 8000 dans son environnement local.
+Engineering Companion doit disposer d’un client permettant de les récupérer.
 
-Ne modifie pas la configuration du Mock LMC pour résoudre un conflit de ports.
+Réutilise les endpoints existants lorsque c’est possible.
 
-3. Lancer Engineering Companion
+Sinon, ajoute uniquement les endpoints de lecture manquants.
 
-Une fois la procédure identifiée, essaie réellement de lancer l’application.
+Privilégie un contrat simple, clair et typé.
 
-Je souhaite que tu puisses démarrer :
+La réponse doit permettre de connaître, pour chaque projet accessible à un utilisateur :
 
-Le backend FastAPI
+* L’identifiant local du projet.
+* L’identifiant du projet Orq.ai, lorsqu’il existe.
+* Le nom du projet.
+* Le rôle de l’utilisateur.
+* Les modèles autorisés.
+* Le modèle par défaut.
+* Les références Orq.ai de ses agents provisionnés.
+* Les éventuels statuts indiquant qu’une ressource n’est pas encore synchronisée.
 
-Il doit démarrer correctement et être accessible localement.
+N’expose jamais de Management Key, de PAT, de clé fournisseur ni d’autre credential.
 
-Le frontend React
+Les références techniques nécessaires à l’exécution des agents doivent rester côté backend.
 
-Il doit être accessible depuis le navigateur de mon PC, via les ports exposés ou transférés par VS Code.
+4. Correspondance des utilisateurs
 
-Les services complémentaires
+Le Mock LMC possède actuellement des utilisateurs synthétiques.
 
-Si Engineering Companion dépend d’autres composants, détermine lesquels sont indispensables à son démarrage.
+Engineering Companion utilise un véritable mécanisme d’authentification.
 
-Ne lance pas automatiquement toute une infrastructure complexe si elle n’est pas nécessaire.
+Je veux que tu étudies comment associer proprement un utilisateur Engineering Companion à son utilisateur Mock LMC.
 
-Si certaines dépendances sont déjà accessibles dans notre environnement, privilégie leur réutilisation.
+Privilégie un identifiant stable, par exemple le sub Keycloak ou un external_id, selon ce que les applications utilisent réellement.
 
-N’utilise pas de services externes supplémentaires sans nécessité.
+Pour cette première étape locale, une correspondance de développement explicite peut être mise en place si nécessaire.
 
-4. Gérer les éventuels blocages
+Cependant :
 
-Il est possible que tu rencontres des difficultés liées :
+* Elle doit être limitée à l’environnement de développement.
+* Elle ne doit pas permettre à un utilisateur de s’attribuer arbitrairement l’identité d’un autre.
+* Elle ne doit pas modifier ni affaiblir l’authentification existante.
+* Elle ne doit pas être considérée comme une solution de sécurité définitive.
 
-* Aux dépendances Python ou Node.
-* Aux certificats internes.
-* Aux registres Artifactory.
-* Aux variables d’environnement.
-* Aux connexions réseau.
-* À l’authentification Keycloak.
-* Aux services backend.
-* Aux accès Orq.ai.
-* Aux conflits de ports.
+Si le Mock LMC ne dispose pas actuellement des informations nécessaires à une correspondance fiable, signale-le et propose la solution minimale adaptée au POC.
 
-Je souhaite que tu résolves les problèmes simples directement, sans transformer cette mission en refonte de l’infrastructure.
+5. Implémentation attendue
 
-Réutilise autant que possible les images, dépendances, certificats et configurations déjà disponibles.
+Je souhaite une première intégration backend simple.
 
-Ne désactive pas les contrôles de sécurité TLS.
+Le backend Engineering Companion doit être capable d’interroger le Mock LMC et de récupérer les configurations correspondant à un utilisateur.
 
-Ne contourne pas l’authentification de production pour faciliter le lancement.
+Tu peux prévoir un endpoint de lecture ou de diagnostic permettant de vérifier le résultat de cette intégration.
 
-Ne modifie pas de credentials et ne les affiche jamais dans les logs.
+Cette première étape doit nous permettre de confirmer :
 
-Si une authentification nécessite mon intervention dans le navigateur, indique-moi simplement la procédure.
+1. Engineering Companion communique correctement avec Mock LMC.
+2. Le Mock LMC retourne les projets correspondant à l’utilisateur identifié.
+3. Les modèles autorisés sont correctement récupérés.
+4. Le modèle par défaut est correctement identifié.
+5. Les références des agents existants sont récupérées.
+6. Les situations où les ressources sont absentes ou non synchronisées sont correctement traitées.
 
-Si une dépendance externe empêche certaines fonctionnalités, distingue clairement :
+Attention aux communications réseau entre les conteneurs Docker.
 
-* Ce qui peut démarrer localement.
-* Ce qui fonctionne réellement.
-* Ce qui nécessite un accès supplémentaire.
-* Ce qui est actuellement bloqué.
+Ne suppose pas que localhost désigne la même machine depuis tous les conteneurs.
 
-Ne prétends pas qu’une fonctionnalité fonctionne si tu n’as pas pu la vérifier.
+Utilise la configuration réseau réellement disponible.
 
-5. Vérifier le démarrage
+6. Contraintes
 
-Une fois l’application lancée, effectue uniquement les vérifications locales nécessaires.
+Cette étape doit rester volontairement limitée.
 
-Par exemple :
+Ne modifie pas :
 
-* Conteneurs Docker démarrés.
-* Backend accessible.
-* Frontend accessible.
-* Réponses HTTP cohérentes.
-* Absence d’erreurs bloquantes dans les logs.
+* Le provisioning Orq.ai.
+* Les templates des agents.
+* Les prompts.
+* Les modèles des agents.
+* Le fonctionnement du chat.
+* Les appels MCP.
+* Les Routing Rules.
+* Les budgets.
+* Les Identities.
+* La nouvelle interface du Mock LMC.
 
-Ne lance pas de tests complexes nécessitant des services externes.
+Ne crée pas de nouveaux agents.
 
-Ne déclenche pas d’opérations de provisioning Orq.ai.
+Ne déclenche aucune opération de provisioning.
 
-Ne modifie ni les agents ni les ressources existantes.
+Ne modifie aucune ressource Orq.ai existante.
 
-Je réaliserai moi-même les vérifications fonctionnelles dans le navigateur.
+La communication Mock LMC → Engineering Companion doit être utilisée uniquement en lecture pour le moment.
 
-6. Contraintes importantes
+Ne développe pas encore de sélection dynamique des modèles.
 
-Cette mission ne doit pas modifier le comportement métier d’Engineering Companion.
+Ne remplace pas encore les agents actuellement utilisés par Engineering Companion.
 
-Ne développe pas de nouvelles fonctionnalités.
+7. Vérifications
 
-Ne commence pas l’intégration avec Mock LMC.
+Réalise les vérifications locales nécessaires.
 
-Ne modifie pas les autorisations, les agents ou les Routing Rules.
+Privilégie les tests unitaires ou les tests de contrat avec des données simulées lorsqu’ils sont utiles.
 
-Ne modifie pas les autres dépôts.
+Ne lance pas de tests complexes sur des environnements externes.
 
-Ne supprime aucun conteneur, volume ou fichier de configuration existant sans nécessité et sans m’en avertir.
+Je réaliserai les vérifications manuelles du fonctionnement des applications.
 
-Si une modification minimale est indispensable pour démarrer Engineering Companion, limite-la à cet objectif et explique-la.
+8. Résultat attendu
 
-Ne réorganise pas inutilement la codebase.
+À la fin de cette mission, je souhaite :
 
-7. Résultat attendu
+1. Un backend Engineering Companion capable de communiquer avec le Mock LMC.
+2. Une récupération fonctionnelle des projets et configurations d’un utilisateur.
+3. Une récupération des références des agents déjà provisionnés.
+4. Une gestion claire des erreurs.
+5. Une explication des fichiers modifiés.
+6. Une procédure simple pour vérifier manuellement que l’intégration fonctionne.
 
-À la fin de cette mission, je veux :
+Point d’arrêt obligatoire :
 
-1. Une présentation synthétique de l’architecture
+Une fois la communication entre les deux backends fonctionnelle, arrête-toi.
 
-Explique-moi comment Engineering Companion fonctionne, avec les principales responsabilités du frontend, du backend et des intégrations externes.
+Ne commence pas à modifier le frontend Engineering Companion.
 
-2. Une application démarrée localement
+Ne commence pas à utiliser les agents provisionnés dans le chat.
 
-Je veux pouvoir ouvrir Engineering Companion dans le navigateur de mon PC.
+Je souhaite d’abord vérifier que les données récupérées sont correctes.
 
-Indique-moi les URL locales exactes.
-
-3. Une procédure de lancement reproductible
-
-Donne-moi les commandes nécessaires pour relancer Engineering Companion après un redémarrage.
-
-4. Une liste des éventuelles limitations
-
-Indique ce qui fonctionne et ce qui ne fonctionne pas encore, sans chercher à tout corriger si cela dépasse le lancement local.
-
-5. Un récapitulatif des modifications
-
-Liste les fichiers que tu as éventuellement dû modifier et explique pourquoi.
-
-8. Point d’arrêt obligatoire
-
-Une fois Engineering Companion lancé et accessible localement, arrête-toi.
-
-Ne commence aucune modification liée à Mock LMC.
-
-Ne commence aucune nouvelle fonctionnalité.
-
-Je souhaite d’abord ouvrir personnellement l’application dans mon navigateur, vérifier qu’elle fonctionne et comprendre son fonctionnement actuel.
-
-Attends ma validation explicite avant de poursuivre.
-
-L’objectif de cette étape est simple : connaître Engineering Companion et être capable de le lancer de manière autonome et reproductible.
+Nous poursuivrons ensuite l’intégration, étape par étape.
