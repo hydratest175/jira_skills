@@ -1,137 +1,141 @@
-Nous avons validé les fonctionnalités suivantes dans notre Mock LMC :
+Nous avons validé les étapes précédentes de notre POC Mock LMC :
 
-* Création et réutilisation des projets Orq.ai.
-* Création et réutilisation des Identities.
+* Création des projets Orq.ai.
+* Création des Identities.
 * Création et synchronisation des budgets projet et Identity.
 
 Tout fonctionne.
 
-Nous passons maintenant à l’étape suivante : le provisioning des modèles LLM et la gestion des accès aux modèles par projet.
+Nous passons maintenant au provisioning des configurations de modèles LLM.
 
-1. OBJECTIF
+OBJECTIF
 
-Lorsqu’un modèle est configuré et activé pour un projet dans le Mock LMC, nous voulons pouvoir provisionner la configuration correspondante dans Orq.ai.
+Lorsqu’un projet est provisionné depuis le Mock LMC, créer automatiquement dans Orq.ai les configurations des modèles sélectionnés pour ce projet.
 
-Notre objectif est d’avoir des configurations de modèles spécifiques à chaque projet LMC.
+Nous avons pris une décision architecturale importante : nous ne souhaitons pas gérer l’Access Control des modèles dans Orq.ai pour ce POC.
 
-Par exemple :
+Les utilisateurs finaux n’accéderont jamais directement à Orq.ai. Les autorisations seront appliquées ultérieurement par le backend Engineering Companion.
 
-Projet A :
+1. CONFIGURATIONS DE MODÈLES PAR PROJET
 
-* Configuration GPT 5.6 — Projet A
-* Configuration Mistral — Projet A
+Chaque projet Mock LMC doit disposer de ses propres configurations de modèles.
 
-Projet B :
+Exemple :
 
-* Configuration GPT 5.6 — Projet B
+Projet Satellite :
 
-Même si deux configurations utilisent le même modèle LLM sous-jacent, nous voulons pouvoir les distinguer pour chaque projet.
+* gpt56-satellite → GPT-5.6
+* mistral-satellite → Mistral
+
+Projet Radar :
+
+* gpt56-radar → GPT-5.6
+
+Même si deux configurations utilisent le même modèle sous-jacent, elles doivent posséder des identifiants distincts.
+
+Attention : les configurations sont techniquement créées au niveau du workspace Orq.ai. Leur association logique aux projets sera conservée dans SQLite.
+
+Nous acceptons que ces modèles soient techniquement accessibles aux autres projets Orq.ai. L’isolation des modèles par utilisateur et projet sera assurée ultérieurement par Engineering Companion.
 
 2. CRÉATION DES MODÈLES
 
-Dans Orq Studio, la création d’un modèle personnalisé permet de renseigner notamment :
+Utilise le SDK orq-ai-sdk 4.13.14 déjà intégré.
 
-* Model type : Chat Completion, Completion, Embedding, etc.
-* Base URL.
+Inspecte ses méthodes et modèles Pydantic pour créer les configurations.
+
+Les configurations doivent reprendre les paramètres nécessaires :
+
+* Model name.
 * Model ID.
-* API Key du fournisseur, si nécessaire.
-* Model Name.
-* Paramètres complémentaires (max tokens, température, etc.).
+* Model type.
+* Provider.
+* Base URL.
+* API Key du fournisseur si nécessaire.
+* Paramètres complémentaires pris en charge.
 
-Je veux pouvoir reproduire ce mécanisme depuis notre Mock LMC.
+Réutilise les configurations enregistrées dans le Mock LMC.
 
-Inspecte le SDK orq-ai-sdk 4.13.14 déjà disponible et les patterns du dépôt thales-orq-provisioning.
+Ne considère pas les valeurs fictives du catalogue comme des configurations réellement utilisables.
 
-Utilise les méthodes et schémas réellement pris en charge.
+Si certaines informations nécessaires manquent, adapte uniquement les champs concernés du Mock LMC pour permettre leur saisie ou leur configuration sécurisée côté backend.
 
-Important : les données fictives du catalogue actuel ne doivent pas être envoyées aveuglément à Orq.ai. Il faut utiliser des configurations valides, correspondant aux modèles et fournisseurs réellement accessibles dans notre environnement.
+Les secrets des fournisseurs ne doivent jamais être exposés dans React, enregistrés en clair dans SQLite ou affichés dans les logs.
 
-3. ACCESS CONTROL PAR PROJET
+3. ACCESS CONTROL
 
-Dans Orq Studio, lorsqu’un modèle existe, il est possible d’ouvrir ses paramètres, de consulter les projets et de gérer son Access Control.
+Ne cherche plus à automatiser le partage des modèles entre projets dans Orq.ai.
 
-Nous voulons automatiser ce fonctionnement.
+Ne développe aucune intégration Terraform.
 
-Lorsqu’une configuration de modèle est provisionnée :
+Les configurations peuvent être activées avec le comportement de partage par défaut d’Orq.ai, conformément à notre décision pour ce POC.
 
-1. Identifier le projet Orq.ai correspondant au projet Mock LMC.
-2. Créer ou retrouver la configuration du modèle.
-3. Autoriser l’accès au modèle uniquement pour les projets sélectionnés dans le Mock LMC.
-4. Ne pas accorder automatiquement l’accès à tous les projets du workspace.
+En revanche, conserve impérativement dans SQLite :
 
-Point important : vérifie bien la distinction entre création d’un modèle au niveau workspace et autorisation d’utilisation au niveau projet.
+* Les modèles associés à chaque projet.
+* Les modèles autorisés pour chaque utilisateur dans chaque projet.
+* Les identifiants réels des configurations Orq.ai.
 
-La méthode de création des modèles du SDK semble être workspace-scoped. Il ne faut donc pas supposer qu’elle accepte directement un project_id.
+Ces données serviront ensuite au backend Engineering Companion pour appliquer les autorisations.
 
-Recherche dans les sources locales du SDK comment les autorisations de modèles sont gérées.
+Ne présente pas cette association logique comme une isolation de sécurité native dans Orq.ai.
 
-Si l’API d’Access Control n’est pas disponible dans le SDK, identifie précisément ce qui manque. N’invente pas d’endpoint.
+4. IDEMPOTENCE
 
-Si nécessaire, propose une opération HTTP directe uniquement si son contrat officiel a pu être vérifié.
+Le provisioning doit rester idempotent.
 
-4. AUTORISATIONS PAR UTILISATEUR
+* Ne pas recréer une configuration déjà provisionnée.
+* Utiliser des identifiants fonctionnels stables.
+* Retrouver les ressources existantes avant création.
+* Enregistrer les mappings dans SQLite.
+* Permettre la synchronisation des configurations lorsque c’est possible.
+* Ne pas modifier les modèles appartenant logiquement à un autre projet.
+* Ne supprimer aucune ressource existante.
 
-Le Mock LMC possède déjà une gestion des modèles autorisés pour chaque utilisateur au sein d’un projet.
+5. INTÉGRATION AU WORKFLOW
 
-Il faut conserver cette distinction :
+Le bouton « Provisionner » doit désormais effectuer :
 
-* Access Control Orq.ai : détermine quels projets peuvent accéder à un modèle.
-* Autorisations Mock LMC : déterminent quels utilisateurs d’un projet peuvent sélectionner ce modèle.
+1. Création ou récupération du projet Orq.ai.
+2. Création ou récupération des Identities.
+3. Synchronisation des budgets.
+4. Création ou synchronisation des configurations de modèles.
+5. Enregistrement des mappings.
+6. Affichage du résultat dans le Mock LMC.
 
-Ne suppose pas que l’Access Control d’Orq.ai permet directement de gérer les autorisations individuelles des utilisateurs.
+Les fonctionnalités déjà validées ne doivent pas être modifiées inutilement.
 
-Ces autorisations devront être contrôlées par le backend de l’Engineering Companion lors de l’exécution.
+6. PRÉPARATION DES ROUTING RULES
 
-5. IDEMPOTENCE ET PERSISTANCE
+Nous utiliserons ultérieurement les Routing Rules pour permettre à un utilisateur de sélectionner dynamiquement son modèle depuis Engineering Companion.
 
-Le provisioning doit être idempotent.
+Pour cette étape, conserve simplement les identifiants réels des modèles afin qu’ils puissent être référencés par les futures Routing Rules.
 
-* Un modèle déjà provisionné ne doit pas être recréé inutilement.
-* Chaque configuration doit posséder une clé fonctionnelle stable.
-* Enregistrer dans SQLite les correspondances avec les identifiants Orq.ai.
-* Permettre la synchronisation des modifications lorsque c’est techniquement possible.
-* Éviter de modifier une configuration appartenant à un autre projet.
-* Ne jamais supprimer automatiquement des modèles existants.
+N’implémente pas encore les Routing Rules.
 
-6. INTÉGRATION AU WORKFLOW
-
-Lorsqu’on clique sur « Provisionner », le workflow doit désormais être :
-
-1. Créer ou retrouver le projet Orq.ai.
-2. Créer ou retrouver les Identities.
-3. Synchroniser les budgets.
-4. Créer ou retrouver les configurations de modèles du projet.
-5. Appliquer les autorisations d’accès aux modèles, si le mécanisme API est disponible.
-6. Afficher les résultats et éventuelles erreurs dans le Mock LMC.
-
-Un échec sur les modèles ne doit pas entraîner la suppression des projets, Identities ou budgets déjà provisionnés.
+N’implémente pas non plus les agents ni les folders utilisateurs.
 
 7. CONTRAINTES
 
-* Travailler uniquement dans mock-lmc-orq-poc.
-* Ne pas modifier le véritable LMC ou Engineering Companion.
-* Réutiliser le SDK existant.
-* Ne pas exposer les clés API ou credentials dans le frontend, SQLite ou les logs.
-* Conserver les fonctionnalités déjà validées.
-* Ne pas développer d’infrastructure inutile.
-* Ne pas créer d’agents, folders ou Routing Rules pour l’instant.
-* Ne pas effectuer d’opérations réelles sur Orq.ai sans mon autorisation.
+* Travaille uniquement dans mock-lmc-orq-poc.
+* Ne modifie pas le véritable LMC.
+* Ne modifie pas Engineering Companion.
+* Utilise le SDK existant.
+* Conserve la configuration Docker actuelle.
+* Ne modifie pas inutilement l’interface React.
+* N’ajoute pas d’infrastructure supplémentaire.
+* Ne journalise aucun secret.
+* Ne lance aucune opération réelle Orq.ai sans mon autorisation.
+* Évite les tests automatisés nécessitant des appels externes. Je réaliserai les validations fonctionnelles manuellement dans Orq Studio.
 
-8. VALIDATION
+8. RÉSULTAT ATTENDU
 
-Je réaliserai les vérifications manuellement dans Orq Studio.
+Je veux pouvoir sélectionner plusieurs modèles dans mon Mock LMC, cliquer sur « Provisionner », puis retrouver leurs configurations dans Orq.ai.
 
-Je veux pouvoir vérifier :
+Je veux également pouvoir créer un deuxième projet utilisant le même modèle sous-jacent et obtenir une configuration distincte.
 
-1. Que les configurations de modèles ont été créées.
-2. Que leurs paramètres correspondent à ceux définis dans le Mock LMC.
-3. Que les modèles sont bien accessibles uniquement aux projets autorisés.
-4. Qu’un deuxième provisioning ne crée pas de doublons.
-5. Que les autres ressources Orq.ai restent inchangées.
+Un deuxième provisioning ne doit pas créer de doublons.
 
-N’automatise pas les vérifications que je peux effectuer directement dans l’interface.
-
-À la fin, explique-moi ce qui a été implémenté, ce qui reste éventuellement bloqué par les capacités du SDK et comment effectuer la validation.
+À la fin, indique-moi comment reconstruire l’application et vérifier manuellement les configurations créées dans Orq Studio.
 
 Ne passe pas aux agents ni aux Routing Rules avant ma validation.
 
