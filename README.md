@@ -1,272 +1,355 @@
-POC technique — Routing Rules Orq.ai et changement dynamique de modèle
+Mission — POC Routing Rules Orq.ai
 
 1. Contexte
 
-Nous travaillons sur l’intégration de l’Engineering Companion avec notre Mock LMC et Orq.ai.
+Nous travaillons sur l’architecture Engineering Companion / Mock LMC / Orq.ai.
 
-L’architecture actuellement implémentée fonctionne :
+L’architecture actuelle fonctionne :
 
-* Un projet LMC correspond à un projet Orq.ai.
-* Le LMC provisionne les projets, Identities, budgets, modèles, prompts et agents.
-* Chaque utilisateur dispose de son orchestrateur Engineering Companion personnel, accompagné de ses spécialistes Jira et GitLab.
+* Le Mock LMC provisionne les projets Orq.ai.
+* Les Identities et budgets sont provisionnés.
+* Les configurations de modèles sont provisionnées.
+* Les prompts et agents personnels sont provisionnés.
+* Chaque utilisateur possède un orchestrateur Engineering Companion et deux sous-agents, Jira Specialist et GitLab Specialist.
 * Les spécialistes sont configurés avec leurs outils MCP.
-* Les ressources sont persistantes et synchronisées par updates.
-* Engineering Companion récupère depuis le Mock LMC les projets, modèles autorisés, Identities et références des agents.
-* Le chat peut exécuter l’orchestrateur personnel associé au projet de l’utilisateur.
-* Le fonctionnement Project-first est opérationnel.
+* Engineering Companion récupère les projets, les modèles autorisés et les références exactes des orchestrateurs depuis le Mock LMC.
+* Le chat utilise correctement l’orchestrateur personnel provisionné.
+* L’exécution Orq.ai fonctionne et les traces sont disponibles.
+* La navigation Project-First est opérationnelle.
 
-Il reste néanmoins un point architectural majeur à résoudre : le changement dynamique de modèle pendant une conversation.
+Tout cela doit être préservé.
 
-Actuellement, le sélecteur de modèle existe dans Engineering Companion, mais il ne permet pas encore de changer réellement le modèle utilisé par l’orchestrateur.
+Actuellement, le modèle effectivement utilisé par l’agent est celui défini dans son manifeste. Le sélecteur de modèle de l’interface ne permet pas encore un véritable changement de modèle pendant l’exécution.
 
-Un audit précédent a proposé de provisionner un orchestrateur distinct par modèle autorisé, avec une stratégie de checkpoints pour préserver la continuité des conversations.
+Nous souhaitons étudier les Routing Rules avant de décider comment implémenter cette fonctionnalité.
 
-Avant d’implémenter cette solution, je souhaite réexaminer une architecture potentiellement plus simple : utiliser les Routing Rules natives d’Orq.ai pour changer le modèle sans multiplier les agents.
+2. Objectif du POC
 
-2. Architecture que nous souhaitons étudier
+Déterminer expérimentalement si Orq.ai permet de changer dynamiquement le modèle d’inférence d’un agent managé, tout en préservant intégralement son comportement agentique.
 
-L’objectif serait de conserver un seul ensemble d’agents par utilisateur et par projet :
+Nous voulons tester l’architecture suivante :
 
-Projet LMC Alpha
-    |
-    |-- Projet Orq.ai Alpha
-          |
-          |-- User A
-          |     |-- Engineering Companion
-          |     |     |-- Jira Specialist
-          |     |     └-- GitLab Specialist
-          |     |
-          |     └-- Modèles autorisés :
-          |           |-- GPT
-          |           └-- Mistral
-          |
-          └-- User B
-                |-- Engineering Companion
-                |     |-- Jira Specialist
-                |     └-- GitLab Specialist
-                |
-                └-- Modèles autorisés :
-                      └-- Mistral
+Engineering Companion
+        |
+        | Modèle demandé : GPT ou Mistral
+        v
+Backend Engineering Companion
+        |
+        | Autorisation validée
+        | Métadonnées de routage contrôlées
+        v
+Orq.ai
+        |
+        v
+Engineering Companion Agent
+        |
+        +---- Jira Specialist
+        |        |
+        |        +---- Outils MCP
+        |
+        +---- GitLab Specialist
+                 |
+                 +---- Outils MCP
 
-Le modèle effectivement utilisé serait sélectionné dynamiquement.
+Hypothèse à vérifier :
 
-Exemple :
+Un unique orchestrateur peut rester configuré de manière permanente, tandis que des Routing Rules déterminent le modèle réellement utilisé lors de chaque requête.
 
-1. User A ouvre Engineering Companion dans le projet Alpha.
-2. Le backend récupère ses modèles autorisés auprès du LMC.
-3. User A sélectionne GPT.
-4. Le backend valide cette sélection.
-5. Il appelle son orchestrateur personnel Orq.ai.
-6. Une Routing Rule permettrait de sélectionner GPT pour l’inférence.
-7. User A sélectionne ensuite Mistral.
-8. Le même orchestrateur serait conservé, mais Mistral serait utilisé.
+Cette hypothèse n’est pas démontrée. Le but du POC est précisément de la confirmer ou de l’infirmer.
 
-L’objectif est d’éviter de créer plusieurs orchestrateurs et plusieurs spécialistes simplement parce qu’un utilisateur peut choisir différents modèles.
+3. Question technique principale
 
-Attention : il s’agit d’une hypothèse architecturale à valider, pas d’un fonctionnement déjà démontré.
+Il faut absolument distinguer deux scénarios.
 
-3. Première étape — Investigation technique approfondie
+Scénario A — Souhaité
 
-Avant de modifier quoi que ce soit, étudie les fonctionnalités d’Orq.ai réellement disponibles dans notre environnement Thales.
+L’appel conserve sa cible agent/<functional_key>.
 
-Examine notamment :
+La Routing Rule agit sur le modèle utilisé pour l’inférence interne de cet agent.
 
-* Le fonctionnement des Routing Rules.
-* Leurs conditions : modèle, metadata, headers, Identity, projet.
-* Leur périmètre d’application.
-* Leur ordre de priorité.
-* L’API Gateway et la Responses API.
-* L’exécution des agents via agent/<functional_key>.
-* La manière dont les agents managés effectuent leurs propres appels d’inférence.
-* Le fonctionnement des sous-agents.
-* Les possibilités de transmission de paramètres ou de métadonnées à l’exécution.
-* Les limites éventuelles de notre SDK Orq.ai et de notre instance Thales.
+L’agent conserve :
 
-Documentation officielle à consulter :
+* Son identité et sa clé fonctionnelle.
+* Son prompt système.
+* Ses instructions.
+* Ses outils.
+* Ses sous-agents.
+* Son équipe d’agents.
+* Son comportement d’orchestration.
 
-https://docs.orq.ai/ai-gateway/configuration/routing-rules
+Seul le modèle d’inférence change.
 
-https://docs.orq.ai/ai-studio/ai-engineering/run-agents
+Scénario B — Non acceptable
 
-Inspecte également le code existant d’Engineering Companion, du Mock LMC et les intégrations Orq.ai.
+La Routing Rule remplace la cible agent/<functional_key> par une référence directe à un modèle.
 
-Question technique fondamentale
+Le moteur d’exécution de l’agent est alors potentiellement contourné.
 
-Une Routing Rule peut-elle modifier le modèle d’inférence interne d’un agent managé tout en conservant l’exécution de cet agent, ses instructions, ses spécialistes et ses outils ?
+Ce scénario ne répondrait pas à notre besoin, même si le modèle final correspond à celui demandé.
 
-Il faut impérativement distinguer deux scénarios.
+Le POC doit démontrer le scénario A, et pas simplement qu’une requête reçoit une réponse provenant de GPT ou de Mistral.
 
-Scénario A — Fonctionnement souhaité
+4. Préparation de l’expérimentation
 
-Nous appelons agent/engineering-companion, et l’agent conserve son fonctionnement habituel, mais son inférence utilise dynamiquement GPT ou Mistral.
+Avant toute modification distante :
 
-Scénario B — Fonctionnement non souhaité
+1. Examiner le SDK Orq.ai installé et les APIs réellement disponibles sur notre instance Thales.
+2. Identifier le mécanisme exact permettant de créer, activer et supprimer des Routing Rules.
+3. Vérifier les conditions CEL prises en charge.
+4. Vérifier si les métadonnées d’une requête agent/<functional_key> sont disponibles lors des inférences internes.
+5. Vérifier la portée des règles : projet, workspace et priorité par rapport aux règles existantes.
+6. Identifier les références exactes de deux modèles disponibles pour le test, idéalement GPT et Mistral.
+7. Vérifier que les permissions et les clés disponibles permettent un test isolé.
 
-Nous appelons agent/engineering-companion, mais une Routing Rule remplace simplement le modèle demandé à l’AI Gateway par un modèle GPT ou Mistral.
+Ne pas inventer de syntaxe CEL, d’endpoint ou de comportement non documenté.
 
-Dans ce cas, nous risquons de ne plus exécuter l’agent Engineering Companion lui-même.
+Si nécessaire, créer un script expérimental indépendant des applications existantes.
 
-Ce scénario ne répondrait pas à notre besoin.
+5. Isolation du POC
 
-Ne considère donc pas qu’une Routing Rule est compatible avec notre architecture simplement parce qu’elle fonctionne avec une requête AI Gateway classique.
+Ce test ne doit avoir aucun impact sur les ressources utilisées actuellement par Engineering Companion.
 
-4. Deuxième étape — POC minimal et isolé
+Contraintes impératives :
 
-Si l’investigation montre une possibilité crédible, prépare un POC ciblé.
+* Utiliser exclusivement un projet Orq.ai dédié aux tests, explicitement identifiable.
+* Ne pas utiliser les projets actuellement exploités par le Mock LMC.
+* Ne pas modifier les orchestrateurs personnels existants.
+* Ne pas modifier les agents Jira/GitLab existants.
+* Ne pas modifier les configurations des modèles existants.
+* Ne pas créer de Routing Rule globale au workspace.
+* Ne pas modifier les règles déjà présentes.
+* Ne pas modifier Engineering Companion ni le Mock LMC.
+* Ne pas exposer de secrets, tokens ou clés API dans les logs.
 
-Je souhaite vérifier deux comportements :
+Si aucun environnement de test suffisamment isolé n’est disponible, arrêter avant toute écriture distante et expliquer ce qui manque.
 
-Test 1 :
+6. Mise en place du test
 
-Un orchestrateur personnel existant est invoqué avec GPT comme modèle souhaité.
+Créer temporairement, dans le projet de test uniquement :
 
-Test 2 :
+Agent orchestrateur
 
-Le même orchestrateur personnel, avec exactement la même functional key, est invoqué avec Mistral comme modèle souhaité.
+Un agent managé Orq.ai disposant :
 
-Nous devons vérifier :
+* D’un prompt système clairement identifiable.
+* D’un modèle configuré initialement.
+* D’un accès à deux sous-agents fictifs.
+* D’au moins un outil de test permettant de prouver que le comportement agentique est conservé.
 
-1. Que l’orchestrateur exécuté est bien le même.
-2. Que le modèle d’inférence réellement utilisé change.
-3. Que les instructions de l’orchestrateur restent appliquées.
-4. Que les spécialistes Jira et GitLab restent disponibles.
-5. Que les Routing Rules ne remplacent pas l’agent lui-même par un simple modèle.
-6. Que les traces Orq.ai permettent d’identifier le modèle effectivement utilisé.
-7. Que deux conversations simultanées peuvent utiliser des modèles différents sans interférence.
+Sous-agents fictifs
 
-Concernant Jira et GitLab, examine aussi si les sous-agents héritent automatiquement de la sélection du modèle principal ou s’ils conservent leur propre modèle configuré.
+Créer deux sous-agents simulant Jira Specialist et GitLab Specialist.
 
-Ce dernier comportement doit être clairement documenté : nous pourrions accepter que les spécialistes utilisent un modèle fixe, si cela correspond à une décision explicite.
+Ils doivent pouvoir renvoyer des informations fictives et facilement vérifiables.
 
-Ne suppose pas que les métadonnées transmises à l’orchestrateur sont automatiquement transmises à ses sous-agents.
+Ne pas connecter de vrais comptes Jira ou GitLab pour cette expérimentation.
 
-5. Sécurité et isolation
+L’objectif est de vérifier que les appels aux sous-agents continuent à fonctionner après application des Routing Rules.
 
-Le Mock LMC reste la source de vérité des autorisations.
+Routing Rules
 
-Les utilisateurs finaux n’accèdent jamais directement à Orq.ai.
+Créer deux règles temporaires, strictement limitées au projet de test.
 
-Le backend Engineering Companion doit vérifier :
+Une règle doit sélectionner GPT.
 
-* L’identité de l’utilisateur depuis Keycloak.
-* Son appartenance au projet LMC.
-* Les modèles qu’il est autorisé à utiliser.
-* Le projet Orq.ai associé.
-* L’orchestrateur personnel correspondant.
+Une autre doit sélectionner Mistral.
 
-Les paramètres de routage ne doivent jamais permettre de contourner ces validations.
+Le déclenchement doit dépendre d’une information contrôlée par le backend, par exemple une métadonnée de sélection de modèle, si cette possibilité est effectivement supportée.
 
-Par exemple, User B ne doit pas pouvoir obtenir GPT si son projet ne l’autorise qu’à utiliser Mistral, même en manipulant une requête HTTP.
+Vérifier la syntaxe CEL exacte.
 
-Par ailleurs, les Routing Rules peuvent avoir un périmètre plus large que celui d’un seul agent.
+Vérifier le mécanisme d’évaluation et les priorités.
 
-Il ne faut donc surtout pas créer une règle globale susceptible de modifier les requêtes des autres projets ou utilisateurs.
+Prévoir des noms uniques et un mécanisme permettant d’identifier précisément les ressources temporaires.
 
-Si le POC nécessite la création d’une Routing Rule réelle, elle doit être strictement isolée, désactivée par défaut et limitée à des conditions de test spécifiques.
+Les règles doivent initialement être désactivées.
 
-Ne modifie aucune règle de production.
+Les activer uniquement pendant les tests nécessaires.
 
-6. Continuité des conversations
+7. Tests à réaliser
 
-Je souhaite également que tu analyses les conséquences sur previous_response_id.
+Test A — Baseline sans Routing Rule
 
-L’objectif n’est pas nécessairement de résoudre tout de suite cette question, mais de déterminer ce qui se passe dans les cas suivants :
+Appeler l’orchestrateur avec son modèle configuré initialement.
 
-* GPT → GPT.
-* GPT → Mistral.
-* Mistral → GPT.
-* GPT → Mistral → GPT.
+Vérifier :
 
-Un changement de modèle ne doit pas provoquer de perte silencieuse de contexte ni réutiliser un previous_response_id incompatible.
+* Le modèle utilisé.
+* L’exécution du prompt.
+* L’utilisation des outils.
+* L’appel aux sous-agents.
+* Les traces Orq.ai.
 
-Notre historique reste persisté côté Engineering Companion.
+Conserver les identifiants des traces.
 
-Les checkpoints et la reconstruction du contexte restent des solutions envisageables, indépendamment du choix des Routing Rules.
+Test B — Routage vers GPT
 
-Il faut également envisager la continuité après une mise à jour des prompts, des outils ou des configurations d’agent.
+Activer la règle GPT.
 
-7. Contraintes importantes
+Appeler exactement le même orchestrateur.
 
-Nous avons déjà beaucoup avancé sur le provisioning et l’intégration Engineering Companion.
+Vérifier :
 
-Je veux préserver ce qui fonctionne actuellement.
+* Que sa clé fonctionnelle reste inchangée.
+* Que GPT réalise réellement l’inférence attendue.
+* Que le prompt est conservé.
+* Que les outils fonctionnent.
+* Que les sous-agents restent accessibles.
+* Que leurs propres modèles sont identifiés.
+* Que la règle appliquée est identifiable dans les traces, si la plateforme expose cette information.
 
-Par conséquent :
+Test C — Routage vers Mistral
 
-* Ne refonds pas le provisioning existant.
-* Ne crée pas de nouveaux orchestrateurs par modèle.
-* Ne modifie pas les agents actuellement provisionnés.
-* Ne change pas la logique de sélection de modèle dans Engineering Companion.
-* Ne modifie pas les historiques ni les conversations existantes.
-* Ne supprime aucune ressource.
-* Ne change pas les Routing Rules existantes.
-* Ne touche pas aux credentials ou aux Management Keys.
-* Ne lance aucun appel susceptible de modifier notre environnement distant sans accord explicite.
+Répéter le test avec Mistral.
 
-Tu peux analyser la codebase, consulter les documentations, créer des tests locaux et préparer un script de POC isolé.
+L’orchestrateur doit toujours être le même.
 
-Si un test réel nécessite une création ou modification de ressource dans Orq.ai, explique précisément ce qui sera créé ou modifié et demande mon accord avant son exécution.
+Ne pas modifier son manifeste entre les tests.
 
-Les secrets doivent rester dans les variables d’environnement ou mécanismes de secrets déjà prévus. Ne les affiche jamais dans les logs ou dans ton compte rendu.
+Test D — Concurrence
 
-8. Résultat attendu
+Créer deux conversations distinctes.
 
-À l’issue de ton travail, je veux un compte rendu technique permettant de prendre une décision architecturale.
+Dans la première, sélectionner GPT.
 
-Présente :
+Dans la seconde, sélectionner Mistral.
+
+Lancer les deux requêtes simultanément.
+
+Vérifier que :
+
+* Chaque conversation utilise le modèle demandé.
+* Aucune configuration persistante d’agent n’est modifiée.
+* Aucun modèle ne fuit d’une conversation à l’autre.
+* Les sous-agents restent disponibles.
+* Les traces distinguent les exécutions.
+
+Test E — Portée des Routing Rules
+
+Vérifier ce qui se produit lorsqu’un orchestrateur appelle Jira Specialist ou GitLab Specialist.
+
+Questions à résoudre :
+
+* La règle affecte-t-elle uniquement l’orchestrateur ?
+* Affecte-t-elle également les sous-agents ?
+* Les métadonnées de la requête parent sont-elles propagées ?
+* Les sous-agents conservent-ils leur modèle configuré ?
+* Une règle peut-elle sélectionner un modèle pour l’orchestrateur sans affecter les spécialistes ?
+
+Ne pas considérer un comportement non observé comme acquis.
+
+Test F — Continuité
+
+Tester deux requêtes successives avec le même orchestrateur et le même modèle.
+
+Puis étudier une transition GPT → Mistral.
+
+Vérifier les limites de previous_response_id.
+
+Ne pas considérer automatiquement qu’un ancien responseId est compatible avec un changement de modèle.
+
+Ce test sert à documenter les comportements et non à implémenter les checkpoints de conversation.
+
+8. Critères de réussite
+
+Le POC est considéré comme réussi uniquement si :
+
+1. Le même orchestrateur conserve sa clé et sa configuration.
+2. Deux modèles différents peuvent être sélectionnés dynamiquement.
+3. Les traces prouvent quel modèle réalise réellement chaque inférence.
+4. Le prompt et les instructions de l’agent restent appliqués.
+5. Les outils et les sous-agents restent utilisables.
+6. Le comportement des spécialistes est identifié et maîtrisable.
+7. Deux conversations concurrentes ne présentent aucune interférence.
+8. Aucune ressource extérieure au projet de test n’est affectée.
+
+Si un seul de ces points essentiels échoue, préciser exactement lequel et pourquoi.
+
+9. Nettoyage
+
+Après les tests :
+
+* Désactiver les deux Routing Rules.
+* Exporter les informations utiles et références de traces.
+* Supprimer uniquement les règles créées pour ce POC.
+* Supprimer les ressources temporaires créées pour ce POC, si leur propriété est certaine.
+* Vérifier qu’aucune règle temporaire ne reste active.
+* Vérifier qu’aucune règle existante n’a été modifiée.
+
+Prévoir ce nettoyage même si un test échoue.
+
+Ne jamais supprimer une ressource préexistante ou dont l’appartenance au POC est incertaine.
+
+10. Livrable attendu
+
+À la fin de l’expérimentation, produire un rapport comprenant :
 
 A. Faisabilité
 
-Les Routing Rules permettent-elles réellement de changer le modèle utilisé à l’intérieur d’un agent Orq.ai managé ?
+Conclusion explicite :
 
-Réponse : OUI / NON / NON DÉMONTRÉ.
+* OUI : le scénario A fonctionne.
+* NON : les Routing Rules ne permettent pas le comportement souhaité.
+* PARTIEL : elles permettent une partie du comportement, avec des limitations.
+* INDÉTERMINÉ : les preuves disponibles sont insuffisantes.
 
-B. Fonctionnement
+B. Résultats
 
-Si oui, explique précisément comment le routage doit être effectué.
+Présenter les tests réalisés, les résultats observés, les références de traces, les modèles effectivement utilisés et les éventuelles erreurs.
 
-Identifie les paramètres de requête, headers, metadata ou configurations nécessaires.
+C. Comportement des sous-agents
 
-C. Sous-agents
+Expliquer précisément comment les règles affectent Jira Specialist et GitLab Specialist.
 
-Explique le comportement de Jira Specialist et GitLab Specialist lors d’un changement de modèle.
+D. Limites
 
-D. Continuité
+Distinguer clairement :
 
-Explique les conséquences sur previous_response_id et sur la conservation du contexte.
+* Les comportements démontrés expérimentalement.
+* Les comportements documentés.
+* Les hypothèses qui restent non vérifiées.
 
-E. Sécurité
+E. Comparaison architecturale
 
-Identifie les risques liés aux règles partagées, aux autorisations LMC et à l’isolation entre projets et utilisateurs.
+Comparer les deux stratégies :
 
-F. Comparaison architecturale
+1. Un orchestrateur personnel utilisant les Routing Rules.
+2. Plusieurs orchestrateurs personnels, chacun configuré avec son propre modèle.
 
-Compare :
+Évaluer :
 
-Solution 1 : un orchestrateur personnel avec sélection dynamique du modèle via Routing Rules.
+* La complexité du provisioning.
+* Le nombre de ressources Orq.ai.
+* Les impacts sur les sous-agents.
+* Les autorisations LMC.
+* La continuité conversationnelle.
+* La maintenance.
+* L’observabilité.
+* La robustesse.
+* Les coûts potentiels.
 
-Solution 2 : un orchestrateur personnel distinct pour chaque modèle autorisé, avec checkpoints lors des changements.
+F. Recommandation
 
-Évalue les deux solutions selon la faisabilité, la complexité, les ressources Orq.ai, la maintenance, la sécurité, la performance, la continuité des conversations et la future intégration de Skills EAL.
+Recommander l’architecture la plus adaptée à Engineering Companion sur la base des résultats réels.
 
-G. Recommandation
+Ne pas privilégier artificiellement les Routing Rules si elles ne répondent pas au besoin.
 
-Propose la solution que tu recommandes pour notre architecture.
+11. Consignes finales
 
-Appuie-toi sur les éléments réellement vérifiés.
+Ce travail est un POC technique isolé, pas une migration d’architecture.
 
-Distingue clairement les comportements documentés, les observations faites pendant le POC et les hypothèses non validées.
+Ne pas modifier les applications existantes.
 
-9. Consigne finale
+Ne pas modifier leur provisioning.
 
-Je ne te demande pas encore d’implémenter une nouvelle architecture.
+Ne pas implémenter la sélection dynamique dans le chat.
 
-Je veux d’abord confirmer ou infirmer la faisabilité des Routing Rules dans notre contexte exact.
+Ne pas implémenter les checkpoints pour le moment.
 
-Ne pars pas du principe que la solution avec plusieurs orchestrateurs par modèle est nécessaire.
+Ne pas annoncer un succès uniquement parce qu’une Routing Rule a sélectionné GPT ou Mistral : il faut impérativement prouver que le comportement agentique est conservé.
 
-Mais ne pars pas non plus du principe que les Routing Rules résoudront automatiquement le problème.
+Tu es autorisé à créer, activer puis supprimer les ressources temporaires nécessaires dans un projet de test explicitement isolé. Aucune modification hors de ce périmètre n’est autorisée.
 
-Investigue, prépare les tests nécessaires, réalise uniquement ceux autorisés et présente-moi les conclusions.
+À la fin, fournis les résultats, les preuves et une recommandation architecturale.
 
-Nous déciderons ensuite ensemble quelle architecture implémenter.
+L’objectif est de pouvoir décider définitivement si notre Engineering Companion doit utiliser les Routing Rules ou conserver des agents distincts par modèle.
