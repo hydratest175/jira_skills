@@ -1,57 +1,106 @@
-Les projets LMC sont désormais intégrés dans Engineering Companion.
+Mission — Raccorder le chat aux agents Orq.ai provisionnés par le Mock LMC
 
-Nous allons continuer progressivement.
+Contexte
+
+La communication entre Mock LMC et Engineering Companion fonctionne.
+
+La sélection des projets et des modèles autorisés est maintenant implémentée dans Engineering Companion.
+
+Le Mock LMC provisionne déjà dans Orq.ai, pour chaque utilisateur et chaque projet, trois agents persistants :
+
+* Engineering Companion (orchestrateur)
+* Jira Specialist
+* GitLab Specialist
+
+Les orchestrateurs sont déjà configurés pour appeler leurs spécialistes respectifs.
+
+Les identifiants exacts des agents sont enregistrés dans les mappings du Mock LMC et récupérables depuis Engineering Companion.
 
 Objectif
 
-Implémenter la sélection des modèles autorisés dans Engineering Companion, en utilisant les informations déjà récupérées depuis le Mock LMC.
+Je souhaite maintenant qu’Engineering Companion utilise réellement l’orchestrateur personnel provisionné par le Mock LMC lorsqu’un utilisateur envoie un message.
 
-Fonctionnement attendu
+Cette étape doit rester limitée à l’exécution des agents existants.
 
-Lorsqu’un utilisateur sélectionne un projet :
+1. Analyse préalable
 
-1. Récupérer les modèles autorisés pour cet utilisateur dans ce projet.
-2. Afficher uniquement ces modèles dans le sélecteur existant, ou dans un composant adapté.
-3. Présélectionner le modèle par défaut configuré dans le Mock LMC.
-4. Permettre à l’utilisateur de choisir un autre modèle autorisé.
-5. Actualiser les modèles disponibles lorsqu’il change de projet.
-6. Gérer les situations où aucun modèle n’est autorisé ou disponible.
+Avant toute modification, analyse précisément la chaîne actuelle d’exécution du chat dans Engineering Companion.
 
-Points importants
+Identifie notamment comment sont actuellement déterminés :
 
-Avant de modifier le code, vérifie si une partie de cette fonctionnalité existe déjà.
+* L’utilisateur connecté.
+* Le projet associé à la conversation.
+* La clé de l’agent Orq.ai exécuté.
+* Les credentials utilisés pour appeler Orq.ai.
+* L’Identity transmise à l’exécution.
+* L’historique et les identifiants de conversation.
 
-Réutilise les composants et les API existants.
+Réutilise les mécanismes existants.
 
-Conserve le design actuel d’Engineering Companion.
+2. Résolution de l’orchestrateur
 
-Les modèles doivent provenir des autorisations du Mock LMC.
+Lorsqu’un utilisateur envoie un message dans une conversation associée à un projet LMC :
 
-Ne recrée pas de catalogue parallèle.
+1. Identifier l’utilisateur depuis son authentification Keycloak.
+2. Vérifier côté backend son appartenance au projet.
+3. Récupérer la configuration correspondante depuis le Mock LMC.
+4. Vérifier que le projet et les ressources nécessaires sont synchronisés.
+5. Retrouver l’identifiant exact de son orchestrateur Orq.ai.
+6. Exécuter cet orchestrateur avec les credentials backend appropriés.
 
-Les contrôles d’autorisation doivent rester côté backend.
+Ne jamais reconstruire approximativement une clé d’agent.
 
-Limites de cette étape
+Ne jamais permettre au frontend de sélectionner arbitrairement un identifiant d’agent à exécuter.
 
-Ne modifie pas encore :
+3. Modèle utilisé
 
-* L’exécution des agents Orq.ai.
-* Les modèles configurés sur les agents existants.
-* Les prompts.
-* Les connecteurs MCP.
-* Les Routing Rules.
-* Le provisioning Mock LMC.
+Pour cette première intégration, utiliser uniquement le modèle par défaut déjà provisionné sur l’orchestrateur personnel.
 
-La sélection doit être préparée dans l’interface, sans modifier silencieusement le modèle réellement utilisé par le chat.
+Ne pas modifier dynamiquement la configuration des agents.
 
-L’interface doit clairement distinguer le modèle sélectionné du modèle effectivement utilisé tant que leur raccordement n’est pas implémenté.
+Si l’utilisateur sélectionne un autre modèle dans l’interface, ne pas prétendre que ce modèle est appliqué.
 
-Validation
+Conserver une indication explicite et empêcher toute ambiguïté entre le modèle sélectionné et le modèle réellement exécuté. Si nécessaire, bloquer temporairement l’envoi avec un modèle différent du modèle provisionné.
 
-Effectue uniquement les vérifications locales nécessaires.
+Nous traiterons la sélection dynamique des modèles dans une étape ultérieure.
 
-Je testerai personnellement la sélection des modèles dans le navigateur.
+4. Exécution et Identity
 
-Une fois terminé, explique les modifications réalisées et arrête-toi.
+Réutilise la logique actuelle d’exécution des agents.
 
-Nous connecterons ensuite cette sélection aux agents Orq.ai provisionnés par le Mock LMC.
+Transmets l’Identity Orq.ai correspondant à l’utilisateur si l’API actuelle le permet et si le mapping a été validé.
+
+Conserve le rattachement de la conversation au bon projet.
+
+Préserve l’historique et le fonctionnement du chat existant.
+
+Les spécialistes Jira et GitLab sont déjà associés à l’orchestrateur lors du provisioning. Ne recrée pas ces connexions et ne modifie pas leurs configurations.
+
+5. Contraintes
+
+* Aucun nouveau provisioning Orq.ai.
+* Aucune modification des templates d’agents ou des prompts.
+* Aucune modification des connecteurs MCP.
+* Aucun changement des budgets.
+* Aucune modification des Routing Rules.
+* Aucune modification de l’interface Mock LMC.
+* Aucune refonte inutile du frontend Engineering Companion.
+* Aucun contournement des autorisations backend.
+
+Les ressources Orq.ai existantes doivent être réutilisées.
+
+6. Vérifications
+
+Effectue les tests locaux nécessaires avec des mocks lorsque c’est pertinent.
+
+Ne déclenche pas automatiquement des conversations réelles ou des appels MCP pour valider le fonctionnement.
+
+Je réaliserai moi-même les tests fonctionnels dans Engineering Companion et vérifierai les traces dans Orq Studio.
+
+7. Résultat attendu
+
+Je veux pouvoir ouvrir Engineering Companion, sélectionner un projet LMC et envoyer un message à mon orchestrateur personnel déjà provisionné dans Orq.ai.
+
+À la fin, explique précisément comment le backend résout l’agent utilisé, quelles vérifications de sécurité sont réalisées et comment je peux vérifier manuellement que la requête a bien été exécutée par le bon orchestrateur.
+
+Arrête-toi après cette étape pour que je puisse valider le fonctionnement avant de continuer.
