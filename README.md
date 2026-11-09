@@ -1,742 +1,712 @@
-Mission — POC Orq.ai : Multi-model Agent Versioning & Conversation Continuity
+Mission — Implémenter le changement dynamique de modèle par versioning des Managed Agents Orq.ai
 
-1. Contexte
+1. Contexte et objectif
 
-Nous développons Engineering Companion, une application utilisant les Managed Agents Orq.ai.
+Nous avons terminé les POC concernant le changement dynamique de modèle des Managed Agents Orq.ai.
 
-Notre architecture actuelle repose sur :
+Les Routing Rules ont été invalidées pour notre besoin.
 
-* Un projet Orq.ai par projet LMC.
-* Un orchestrateur Engineering Companion personnel par utilisateur et par projet.
-* Deux sous-agents personnels : Jira Specialist et GitLab Specialist.
-* Des outils MCP associés aux spécialistes.
-* Des modèles, prompts, Identities et budgets provisionnés depuis le Mock LMC.
-* Un provisioning persistant et idempotent.
-* Une application Engineering Companion fonctionnelle avec une navigation Project-first et des conversations persistantes.
+En revanche, le POC de versioning a confirmé qu’il est possible d’utiliser plusieurs versions d’un même Managed Agent, chacune associée à un modèle différent, et de les invoquer indépendamment.
 
-Nous souhaitons permettre à un utilisateur de changer de modèle pendant une conversation.
+Nous voulons maintenant implémenter cette architecture dans notre Mock LMC et notre Engineering Companion.
 
-Nous avons précédemment étudié les Routing Rules.
+Il ne s’agit plus de réaliser une étude ou un POC isolé.
 
-Le POC a démontré que, sur notre instance Orq.ai Thales actuelle, elles peuvent router des appels LLM directs, mais ne modifient pas le modèle d’inférence interne de nos Managed Agents.
+Je veux une implémentation fonctionnelle de bout en bout, en conservant les fonctionnalités existantes.
 
-Nous souhaitons désormais tester une nouvelle architecture reposant sur le versioning natif des Managed Agents.
+Important : hors périmètre
 
-Cette mission est un POC technique isolé.
+Ne travaille pas sur les Skills, la marketplace ou l’EAL.
 
-Ne modifie pas Engineering Companion ni le Mock LMC.
+Nous traiterons ce sujet ultérieurement.
+
+Ne mets pas non plus en place de Routing Rules.
 
 ⸻
 
-2. Nouvelle architecture à étudier
+2. Architecture cible
 
-Nous souhaitons conserver un seul orchestrateur logique par couple utilisateur/projet.
+Nous conservons :
 
-Cependant, cet orchestrateur disposerait de plusieurs versions publiées, chacune utilisant un modèle différent.
+* Un projet Orq.ai par projet LMC.
+* Un orchestrateur Engineering Companion personnel par utilisateur et par projet.
+* Un Jira Specialist personnel par utilisateur et par projet.
+* Un GitLab Specialist personnel par utilisateur et par projet.
+* Des spécialistes communs à toutes les versions de l’orchestrateur personnel.
+* Des Identities Orq par utilisateur.
+* Les budgets projet et utilisateur.
+* Les credentials Jira/GitLab propres à chaque utilisateur.
+* Le provisioning persistant déclenché par le Project Manager depuis le LMC.
 
-Exemple conceptuel :
+Nouveau fonctionnement
 
-Projet Alpha
+Chaque orchestrateur personnel possède plusieurs versions publiées.
+
+Chaque version correspond à un modèle autorisé dans le projet LMC.
+
+Exemple :
+
+Projet LMC : Alpha
 │
 └── User A
     │
     ├── Engineering Companion
     │   │
-    │   ├── Version A → Mistral Small
-    │   ├── Version B → Mistral Medium
-    │   └── Version C → GPT
+    │   ├── v1.1.0 → Mistral Small
+    │   ├── v1.2.0 → Mistral Medium
+    │   └── v1.3.0 → Gemma
     │
     ├── Jira Specialist
-    │   └── Modèle fixe
     │
     └── GitLab Specialist
-        └── Modèle fixe
 
-IMPORTANT :
+Il s’agit d’un seul orchestrateur logique, avec une seule Agent Key et plusieurs versions.
 
-Les lettres A, B et C représentent des versions distinctes. Les véritables numéros devront être récupérés depuis Orq.ai.
+Ne crée pas un nouvel orchestrateur pour chaque modèle.
 
-Nous ne voulons pas supposer que les versions seront nécessairement 1.0.0, 1.1.0 et 1.2.0.
+Les modèles des spécialistes restent fixes et indépendants du modèle choisi pour l’orchestrateur.
 
-Principe
+Exécution
 
-Le Mock LMC provisionnerait à terme toutes les versions nécessaires à l’avance.
+Si l’utilisateur sélectionne Mistral Small :
 
-Lorsque l’utilisateur sélectionne un modèle dans Engineering Companion, le backend sélectionnerait directement la version correspondante.
+agent/<personal-orchestrator-key>@1.1.0
 
-Exemple :
+S’il sélectionne Mistral Medium :
 
-Mistral Small
-    → agent/ec-user-a@VERSION_A
-Mistral Medium
-    → agent/ec-user-a@VERSION_B
-GPT
-    → agent/ec-user-a@VERSION_C
+agent/<personal-orchestrator-key>@1.2.0
 
-Aucun PATCH ne serait effectué lors du changement de modèle dans une conversation.
+S’il sélectionne Gemma :
 
-Les PATCH seraient exclusivement utilisés lors du provisioning ou de la synchronisation des configurations depuis le LMC.
+agent/<personal-orchestrator-key>@1.3.0
 
-Les anciennes versions seraient invoquées directement par leur référence explicite.
+Les numéros sont des exemples.
 
-L’objectif est de permettre plusieurs conversations utilisant différents modèles sans modifier continuellement la configuration de l’agent.
+Utilise toujours les versions réellement publiées et retournées par Orq.ai.
+
+Aucun PATCH ne doit être effectué lors d’un simple changement de modèle dans le chat.
 
 ⸻
 
-3. Décision concernant les sous-agents
+3. Commencer par examiner le code existant
 
-Nous avons également retenu une décision architecturale importante.
+Les principaux projets sont :
 
-Seul le modèle de l’orchestrateur doit changer selon la sélection de l’utilisateur.
+Mock LMC
 
-Jira Specialist et GitLab Specialist doivent conserver leurs propres modèles fixes.
+LEA_Workspace/mock-lmc-orq-poc
 
-Exemple :
+Backend FastAPI, interface React/Vite et persistance SQLite.
 
-Engineering Companion @Version A
-    Modèle : Mistral Small
-         │
-         ├── Jira Specialist
-         │     Modèle : Mistral Small
-         │
-         └── GitLab Specialist
-               Modèle : Mistral Small
-Engineering Companion @Version B
-    Modèle : Mistral Medium
-         │
-         ├── Jira Specialist
-         │     Modèle : Mistral Small
-         │
-         └── GitLab Specialist
-               Modèle : Mistral Small
+Engineering Companion
 
-Les deux versions de l’orchestrateur doivent référencer les mêmes spécialistes.
+LEA_Workspace/use-case-engineering-companion
 
-Nous ne souhaitons pas créer une copie des spécialistes pour chaque modèle de l’orchestrateur.
+Identifie le frontend réellement utilisé ainsi que les routes backend responsables :
 
-L’objectif est de conserver trois agents logiques :
+* De la sélection du projet.
+* De la sélection du modèle.
+* De l’autorisation des utilisateurs.
+* De la résolution des orchestrateurs.
+* De l’exécution des agents Orq.
+* De la persistance des conversations.
 
-1. Engineering Companion.
-2. Jira Specialist.
-3. GitLab Specialist.
-
-Le nombre de versions de l’orchestrateur peut augmenter, mais celui des spécialistes doit rester stable.
-
-Ce comportement doit être démontré expérimentalement.
-
-⸻
-
-4. Objectifs du POC
-
-Nous voulons répondre à six questions principales.
-
-Question 1 — Versioning
-
-Peut-on publier plusieurs versions d’un Managed Agent utilisant des modèles distincts ?
-
-Question 2 — Invocation
-
-Peut-on appeler librement une ancienne version ou une nouvelle version sans modifier la configuration de l’agent ?
-
-Question 3 — Concurrence
-
-Peut-on exécuter simultanément deux conversations utilisant deux versions différentes du même orchestrateur, sans interférence ?
-
-Question 4 — Sous-agents
-
-Les différentes versions peuvent-elles utiliser les mêmes spécialistes Jira et GitLab, avec leurs modèles fixes ?
-
-Question 5 — Continuité conversationnelle
-
-Une conversation peut-elle passer de la version A à la version B puis revenir à la version A sans perdre les informations importantes des échanges précédents ?
-
-Question 6 — Maintenance
-
-Comment maintenir les versions à jour lorsqu’on modifie les prompts, les outils, les Skills ou les instructions de l’orchestrateur ?
-
-⸻
-
-5. Environnement de travail
-
-Commence par examiner les POC existants dans LEA_Workspace.
-
-Notamment :
-
-LEA_Workspace/routing-rules-poc
-
-Et, s’il existe déjà :
-
-LEA_Workspace/agent-model-switch-poc
-
-Réutilise un environnement de POC existant uniquement s’il est adapté et ne contient pas de ressources à préserver.
-
-Sinon, crée :
+POC validé
 
 LEA_Workspace/agent-versioning-poc
 
-Tu peux consulter en lecture seule :
+Lis impérativement :
 
-* LEA_Workspace/mock-lmc-orq-poc
-* LEA_Workspace/use-case-engineering-companion
-* LEA_Workspace/use-case-engineering-companion/thales_orq_provisioning
+* REPORT.md
+* SUMMARY.json
+* report-final.json
+* report-v6.json
 
-Adapte les chemins à l’arborescence réelle.
+Examine également les scripts Python du POC.
 
-Réutilise le SDK Orq.ai et les configurations réseau déjà disponibles.
+Réutilise les méthodes qui ont réellement fonctionné.
 
-Software Companion ne dispose pas d’un accès Internet public. Inspecte donc le SDK installé et les implémentations locales plutôt que de dépendre de documentation en ligne.
+Ne réimplémente pas le versioning sur la base d’hypothèses.
 
-Ne modifie aucun dépôt applicatif existant.
+Contraintes
 
-⸻
+Avant toute modification, comprends l’architecture existante.
 
-6. Phase 1 — Investigation du SDK et de l’API
+Ne réécris pas les applications.
 
-Avant les tests, inspecte les mécanismes disponibles pour :
-
-* Créer un Managed Agent.
-* Modifier son modèle.
-* Publier une nouvelle version.
-* Récupérer son historique de versions.
-* Récupérer une version spécifique.
-* Invoquer une version spécifique.
-* Conserver les références aux sous-agents.
-* Utiliser previous_response_id.
-
-La documentation Orq.ai présente notamment :
-
-PATCH /v2/agents/{agent_key}
-
-Avec une gestion de version pouvant utiliser :
-
-versionIncrement
-
-Et une invocation de version via :
-
-agent/<agent_key>@<version>
-
-Vérifie les signatures et comportements réellement disponibles sur notre instance Thales.
-
-Ne suppose pas que le SDK installé utilise exactement les mêmes paramètres que la documentation publique.
-
-Vérifications spécifiques
-
-Détermine si :
-
-1. Chaque PATCH crée effectivement une nouvelle version publiée.
-2. Les versions précédentes restent accessibles.
-3. Les snapshots contiennent le modèle, les instructions, les outils et les sous-agents.
-4. Les versions peuvent être invoquées indépendamment.
-5. Une référence @version correspond réellement à une configuration figée.
-6. Une mise à jour ultérieure de latest n’affecte pas une ancienne version épinglée.
-
-Si l’un de ces comportements n’est pas supporté, documente-le précisément.
+Préserve les API et composants qui fonctionnent déjà lorsque c’est possible.
 
 ⸻
 
-7. Phase 2 — Créer les agents de test
+4. Première partie — Implémentation dans Mock LMC
 
-Utilise exclusivement un projet Orq.ai dédié au POC.
+4.1. Adapter le provisioning des orchestrateurs
 
-Ne modifie aucun projet actuellement utilisé par Engineering Companion.
+Actuellement, le Mock LMC sait déjà provisionner les ressources Orq.ai d’un projet.
 
-Agents à provisionner
+Nous voulons conserver ce fonctionnement.
 
-Créer trois agents :
-
-Engineering Companion POC
-
-Orchestrateur principal.
-
-Il doit posséder :
-
-* Une clé fonctionnelle stable.
-* Un system prompt identifiable.
-* Un modèle initial.
-* Une équipe contenant Jira Specialist et GitLab Specialist.
-* Des paramètres d’exécution simples.
-* Un outil natif inoffensif, si disponible.
-
-Jira Specialist POC
-
-Sous-agent simulant Jira.
-
-Il doit :
-
-* Utiliser un modèle fixe.
-* Posséder un prompt clairement identifiable.
-* Pouvoir renvoyer des informations fictives déterministes.
-
-GitLab Specialist POC
-
-Sous-agent simulant GitLab.
-
-Il doit :
-
-* Utiliser un modèle fixe.
-* Posséder un prompt clairement identifiable.
-* Pouvoir renvoyer des informations fictives déterministes.
-
-Ne connecte aucun serveur MCP réel.
-
-Ne réalise aucun appel vers les véritables données Jira ou GitLab.
-
-⸻
-
-8. Phase 3 — Publier plusieurs versions de l’orchestrateur
-
-Utilise deux modèles réellement distincts et déjà disponibles dans notre environnement.
-
-Par exemple :
-
-* Mistral Small.
-* Mistral Medium.
-
-Si un troisième modèle est disponible, nous pourrons étendre l’expérience.
-
-Deux modèles suffisent pour valider le mécanisme principal.
-
-Version A
-
-Créer et publier Engineering Companion avec le modèle A.
-
-Récupérer :
-
-* Agent Key.
-* Agent ID.
-* Numéro exact de version.
-* Référence du modèle.
-* Configuration des instructions.
-* Références des spécialistes.
-
-Version B
-
-Effectuer un PATCH pour utiliser le modèle B.
-
-Publier la nouvelle version selon les mécanismes réellement supportés.
-
-Récupérer les mêmes informations.
-
-Vérification des snapshots
-
-Comparer les configurations des deux versions.
-
-Nous voulons que seule la configuration nécessaire au changement de modèle diffère.
-
-Vérifier notamment :
-
-* Même Agent Key.
-* Même system prompt.
-* Mêmes instructions.
-* Mêmes outils.
-* Mêmes spécialistes.
-* Modèle différent.
-
-Si d’autres paramètres ont changé, expliquer pourquoi.
-
-Ne réalise aucun PATCH supplémentaire pendant les tests d’exécution.
-
-⸻
-
-9. Phase 4 — Vérifier l’invocation des versions
-
-C’est notre premier test décisif.
-
-Appeler explicitement la version A.
-
-Exemple conceptuel :
-
-{
-  "model": "agent/ec-poc@VERSION_A",
-  "input": "Présente ton rôle et utilise tes spécialistes."
-}
-
-Vérifier dans Orq Studio :
-
-* La version réellement exécutée.
-* Le modèle utilisé par l’orchestrateur.
-* L’application de ses instructions.
-* L’appel aux spécialistes.
-* Les modèles utilisés par les spécialistes.
-
-Effectuer ensuite exactement le même test avec la version B.
-
-Résultat attendu
-
-Version A :
-
-* Orchestrateur → modèle A.
-* Jira Specialist → modèle fixe.
-* GitLab Specialist → modèle fixe.
-
-Version B :
-
-* Orchestrateur → modèle B.
-* Jira Specialist → même modèle fixe.
-* GitLab Specialist → même modèle fixe.
-
-Les deux exécutions doivent utiliser le même Agent Key.
-
-Aucun PATCH ne doit être nécessaire entre les deux appels.
-
-⸻
-
-10. Phase 5 — Tester la continuité conversationnelle
-
-C’est la partie la plus importante du POC.
-
-Nous voulons déterminer si le versioning permet réellement de changer de modèle tout en conservant le contexte.
-
-Test A — Conversation sans changement de version
-
-Démarrer une conversation avec la version A.
-
-Message 1 :
-
-« Je travaille sur le projet Phoenix. Nous avons trois risques : une API en retard, un pipeline instable et une dépendance externe bloquante. »
-
-Enregistrer le response_id.
-
-Message 2 :
-
-« Quels sont les trois risques dont nous avons parlé ? »
-
-Utiliser previous_response_id.
-
-Vérifier que la réponse est correcte.
-
-Ce test constitue notre référence.
-
-Test B — Passage de la version A à la version B
-
-Démarrer une nouvelle conversation avec la version A.
-
-Fournir plusieurs informations précises.
-
-Faire intervenir un spécialiste de test.
-
-Enregistrer le dernier response_id.
-
-Passer ensuite à la version B en utilisant le même Agent Key et une référence @version différente.
-
-Transmettre le previous_response_id obtenu avec la version A.
-
-Demander à l’orchestrateur de restituer :
-
-* Les informations précédemment fournies.
-* Les décisions déjà prises.
-* Les résultats importants du spécialiste.
-* Le contexte général de la conversation.
-
-Nous voulons vérifier :
-
-1. Si l’API accepte previous_response_id.
-2. Si la version B utilise réellement le modèle B.
-3. Si le contexte reste accessible.
-4. Si les résultats des spécialistes sont conservés.
-5. Si des informations sont perdues.
-6. Si le comportement agentique reste intact.
-
-Une réponse HTTP 200 ne suffit pas à considérer le test comme réussi.
-
-Test C — Retour à la version A
-
-Continuer la même conversation :
-
-Version A → Version B → Version A.
-
-Utiliser le response_id du dernier tour effectué sous B pour tester la continuité vers A.
-
-Ne réutilise pas artificiellement un ancien response_id de A qui ignorerait les échanges intermédiaires.
-
-Vérifier que les informations ajoutées pendant la période B restent disponibles.
-
-Test D — Reconstruction du contexte
-
-Si la continuité via previous_response_id ne fonctionne pas correctement entre versions, tester une alternative.
-
-Reconstituer le contexte depuis les messages persistés du POC.
-
-Transmettre explicitement l’historique utile à la nouvelle version.
-
-Comparer le résultat avec le test précédent.
-
-Si nécessaire, tester également un checkpoint structuré contenant les faits importants, décisions et résultats d’outils.
-
-Ne développe pas une infrastructure complète de mémoire conversationnelle : une expérimentation ciblée suffit.
-
-Distinction obligatoire
-
-Dans les conclusions, distingue :
-
-Continuité technique : l’API accepte-t-elle la chaîne de réponses entre versions ?
-
-Continuité fonctionnelle : le nouveau modèle dispose-t-il réellement des informations nécessaires pour poursuivre ?
-
-Continuité exhaustive : les détails et résultats d’outils sont-ils intégralement conservés ?
-
-Ces trois niveaux ne doivent pas être confondus.
-
-⸻
-
-11. Phase 6 — Tester les conversations concurrentes
-
-Imaginons deux conversations ouvertes par le même utilisateur.
-
-Conversation 1 :
-
-Mistral Small, via version A.
-
-Conversation 2 :
-
-Mistral Medium, via version B.
-
-Les deux conversations utilisent le même Agent Key, mais des versions différentes.
-
-Tests attendus
-
-Démarrer les deux conversations indépendamment.
-
-Leur fournir des informations distinctes.
+En revanche, lorsqu’un utilisateur dispose de plusieurs modèles autorisés, le provisioning doit créer les versions correspondantes de son orchestrateur personnel.
 
 Exemple :
 
-Conversation A :
-« Mon projet s’appelle Phoenix. »
+Un projet autorise :
 
-Conversation B :
-« Mon projet s’appelle Orion. »
+* Mistral Small.
+* Mistral Medium.
+* Gemma.
 
-Effectuer des requêtes simultanées.
+Lors du provisioning :
 
-Vérifier :
+1. Vérifier ou créer l’orchestrateur personnel.
+2. Publier une configuration avec Mistral Small.
+3. Publier une autre version avec Mistral Medium.
+4. Publier une troisième version avec Gemma.
+5. Vérifier que les versions existent et utilisent leurs modèles respectifs.
+6. Conserver les références retournées par Orq.
+7. Préserver les associations aux spécialistes personnels.
 
-* Que chaque exécution utilise le bon modèle.
-* Que chaque conversation conserve son propre historique.
-* Qu’aucune information de Phoenix n’apparaît dans Orion par contamination du contexte.
-* Que les sous-agents restent disponibles.
-* Qu’aucun PATCH n’est effectué pendant l’exécution.
-* Que l’évolution de latest n’affecte pas les appels épinglés sur une version.
+Les trois versions doivent partager :
 
-Le test doit être réellement concurrent si l’environnement le permet.
+* La même Agent Key.
+* Les mêmes instructions d’orchestration.
+* Les mêmes outils.
+* Les mêmes références aux spécialistes Jira/GitLab.
+* La même configuration commune, sauf les paramètres spécifiques au modèle.
 
-Ne considère pas deux exécutions successives comme une preuve de compatibilité concurrente.
+Les versions ne doivent différer que par les paramètres explicitement liés au modèle.
+
+Idempotence
+
+Le provisioning doit rester idempotent.
+
+Si je clique à nouveau sur « Provisionner » sans modifier la configuration :
+
+Aucune nouvelle version inutile ne doit être créée.
+
+Si un modèle autorisé est ajouté, créer uniquement les versions manquantes.
+
+Si un modèle est retiré, désactiver son mapping pour les nouvelles exécutions sans supprimer brutalement les anciennes conversations.
+
+Si la configuration commune change, publier les nouvelles versions nécessaires et mettre à jour les mappings.
+
+Ne jamais modifier silencieusement une version utilisée par une conversation existante.
 
 ⸻
 
-12. Phase 7 — Tester les mises à jour et la maintenance
+5. Persistance des mappings modèle → version
 
-C’est un point architectural essentiel.
+C’est une partie essentielle.
 
-Nous souhaitons utiliser les versions pour proposer différents modèles.
+Le POC a montré que les endpoints permettant de récupérer l’historique complet des versions n’étaient pas disponibles dans notre environnement.
 
-Mais Orq.ai utilise également les versions pour conserver l’historique des modifications des agents.
+Nous devons donc gérer nous-mêmes les correspondances.
 
-Ces deux usages peuvent entrer en conflit.
+Utiliser SQLite dans le Mock LMC.
+
+Créer une structure persistante permettant de retrouver, pour un utilisateur donné :
+
+LMC Project ID
+       +
+Keycloak User ID
+       +
+LMC Model Configuration ID
+       ↓
+Orq Project ID
+       +
+Personal Orchestrator Key
+       +
+Published Agent Version
+
+Exemple conceptuel :
+
+Projet	Utilisateur	Modèle	Agent Key	Version
+Alpha	User A	Small	ec-user-a	1.1.0
+Alpha	User A	Medium	ec-user-a	1.2.0
+Alpha	User A	Gemma	ec-user-a	1.3.0
+
+Cette table doit être persistante et cohérente avec l’état réel d’Orq.ai.
+
+Prévoir notamment :
+
+* Une contrainte d’unicité adaptée.
+* La référence exacte du modèle Orq.
+* L’état du provisioning.
+* Une empreinte de configuration permettant de détecter les changements.
+* La version effectivement publiée.
+* Une date de mise à jour.
+
+Le mapping doit être propre à chaque couple utilisateur/projet.
+
+Deux utilisateurs ne doivent pas partager accidentellement le même orchestrateur personnel.
+
+Gestion des erreurs
+
+Si une publication échoue :
+
+* Ne pas enregistrer un mapping faussement provisionné.
+* Ne pas perdre les mappings déjà valides.
+* Permettre une reprise idempotente.
+* Exposer une erreur compréhensible dans le Mock LMC.
+
+Compatibilité avec le provisioning existant
+
+Nous avons déjà des orchestrateurs personnels qui fonctionnent.
+
+Ne les supprime pas et ne les recrée pas systématiquement.
+
+Prévois une migration progressive et non destructive.
+
+Si une version existante peut être associée de manière fiable au modèle déjà provisionné, réutilise-la.
+
+Sinon, publie les versions nécessaires sans casser l’orchestrateur existant.
+
+⸻
+
+6. Mise à jour de la configuration des modèles dans LMC
+
+La configuration du projet LMC reste la source de vérité.
+
+Un Project Manager doit pouvoir :
+
+* Autoriser plusieurs modèles.
+* Définir un modèle par défaut.
+* Modifier les modèles autorisés.
+* Relancer le provisioning.
+
+Lors d’une modification, le provisioning doit réconcilier les versions de l’orchestrateur avec les modèles actuellement autorisés.
 
 Exemple
 
-Nous avons :
+Initialement :
 
-Version A → Mistral Small
-Version B → Mistral Medium
+Small  → v1.1.0
+Medium → v1.2.0
 
-Le Project Manager décide ensuite de modifier le prompt Engineering Companion.
+Le Project Manager ajoute Gemma.
 
-Nous voulons que cette amélioration soit disponible avec les deux modèles.
+Après synchronisation :
 
-Or, les anciennes versions publiées sont des snapshots.
+Small  → v1.1.0
+Medium → v1.2.0
+Gemma  → v1.3.0
 
-Une nouvelle publication ne met pas nécessairement à jour les snapshots précédents.
+Si aucune configuration commune ne change, Small et Medium doivent conserver leurs mappings existants.
 
-Étude demandée
+Mise à jour des instructions communes
 
-Détermine comment nous pourrions maintenir une configuration commune à toutes les variantes de modèles.
-
-Étudie notamment :
-
-* La publication d’une nouvelle version pour chaque modèle après une modification commune.
-* La conservation des versions précédentes.
-* La récupération des véritables numéros de versions.
-* La mise à jour des mappings modèle → version.
-* Les conversations utilisant encore d’anciennes versions.
-* La gestion des modèles retirés des autorisations.
-* L’évolution future des Skills EAL et des outils.
-* La compatibilité des références aux spécialistes.
-
-Ne développe pas encore cette synchronisation dans le Mock LMC.
-
-Je veux une proposition de stratégie.
-
-Point important
-
-Nous ne devons jamais supposer :
-
-Version 1.0.0 = Mistral Small pour toujours
-
-Une version représente un snapshot de configuration.
-
-Le Mock LMC devra conserver une correspondance explicite entre le modèle autorisé et la version actuellement retenue pour ce modèle.
+Lorsqu’une modification des instructions de l’orchestrateur doit être propagée à toutes les variantes de modèles, publier de nouvelles versions.
 
 Par exemple :
 
-Project Alpha / User A
-Mistral Small
-    → agent_key : ec-user-a
-    → version   : 2.1.0
-Mistral Medium
-    → agent_key : ec-user-a
-    → version   : 2.2.0
+Small  → v1.4.0
+Medium → v1.5.0
+Gemma  → v1.6.0
 
-Ces numéros sont illustratifs.
+Les nouvelles conversations doivent utiliser les versions correspondant à la configuration actuellement active.
 
-Il faudra utiliser les versions réellement publiées.
+Les anciennes versions ne doivent pas être supprimées sans politique explicite de conservation.
+
+Ne suppose jamais que la version la plus récente correspond à un modèle précis.
 
 ⸻
 
-13. Phase 8 — Vérifier la stabilité des spécialistes
+7. Spécialistes Jira et GitLab
 
-Nous voulons que Jira Specialist et GitLab Specialist soient indépendants de la sélection du modèle de l’orchestrateur.
+Nous conservons exactement deux spécialistes personnels par utilisateur/projet :
 
-Cependant, leurs propres configurations peuvent évoluer.
+* Jira Specialist.
+* GitLab Specialist.
 
-Il faut donc déterminer comment une version publiée d’Engineering Companion référence ses spécialistes.
+Ils sont partagés par toutes les versions de l’orchestrateur personnel.
 
-Questions à résoudre :
+Leurs modèles sont configurés indépendamment de la sélection effectuée dans le chat.
 
-1. La version de l’orchestrateur conserve-t-elle uniquement les Agent Keys des spécialistes ?
-2. Peut-elle référencer une version spécifique d’un spécialiste ?
-3. Si nous mettons à jour Jira Specialist, les anciennes versions de l’orchestrateur utilisent-elles automatiquement sa nouvelle configuration ?
-4. Une mise à jour des spécialistes peut-elle provoquer une incompatibilité avec une ancienne version de l’orchestrateur ?
-5. Quelle stratégie de versioning recommandes-tu pour conserver un comportement prévisible ?
+Le POC a confirmé que ce partage fonctionne.
 
-Ces questions doivent être vérifiées dans le SDK et, lorsque c’est possible, expérimentalement.
+Il a également montré que les anciennes versions de l’orchestrateur peuvent résoudre la dernière version des spécialistes.
 
-Ne suppose pas que les sous-agents sont automatiquement figés avec le snapshot de l’orchestrateur.
+Nous acceptons ce fonctionnement pour le moment.
 
-⸻
+En revanche :
 
-14. Sécurité et isolation
-
-Toutes les expérimentations doivent être réalisées dans un environnement isolé.
-
-Ne modifie pas :
-
-* Engineering Companion.
-* Mock LMC.
-* Les projets Orq.ai opérationnels.
-* Les orchestrateurs personnels existants.
-* Les sous-agents Jira/GitLab existants.
-* Les Routing Rules existantes.
-* Les configurations de modèles opérationnelles.
-
-Aucune Management Key ne doit être utilisée pour les inférences.
-
-Les secrets ne doivent jamais apparaître dans les logs ou les rapports.
-
-N’utilise aucune donnée professionnelle réelle pour tester la continuité.
-
-Le versioning ne doit pas être considéré comme une frontière d’autorisation.
-
-Dans l’architecture cible, les modèles restent autorisés par le LMC, et Engineering Companion devra vérifier ces autorisations côté backend avant de résoudre la version correspondante.
+* Ne tente pas de référencer un spécialiste avec une syntaxe de version explicitement rejetée par le POC.
+* Préserve leurs credentials spécifiques à l’utilisateur.
+* Préserve leurs outils MCP.
+* Ne duplique pas les spécialistes pour chaque modèle.
+* Évite les modifications de configuration qui casseraient les anciennes versions de l’orchestrateur.
 
 ⸻
 
-15. Nettoyage
+8. Deuxième partie — Intégration dans Engineering Companion
 
-À la fin :
+Une fois le provisioning et les mappings fonctionnels, connecte-les au backend Engineering Companion.
 
-* Arrêter les exécutions.
-* Conserver les références de traces utiles.
-* Nettoyer uniquement les ressources temporaires appartenant au POC.
-* Ne supprimer aucune ressource préexistante.
-* Ne pas forcer la suppression d’un projet si Orq.ai la refuse en raison de traces.
-* Documenter les ressources temporaires éventuellement conservées.
+8.1. Sélection réelle du modèle
 
-Ne modifie aucune règle de routage.
+Aujourd’hui, le sélecteur de modèle est principalement visuel.
 
-⸻
+Nous voulons maintenant que la sélection détermine réellement l’orchestrateur exécuté.
 
-16. Rapport final attendu
+Lorsqu’un utilisateur sélectionne un modèle :
 
-Je souhaite un rapport technique suffisamment détaillé pour décider si cette architecture est viable.
+1. Le frontend transmet uniquement l’identifiant LMC du modèle sélectionné.
+2. Le backend authentifie l’utilisateur.
+3. Le backend retrouve le projet LMC associé à la conversation.
+4. Il vérifie que l’utilisateur appartient toujours au projet.
+5. Il vérifie que le modèle est autorisé.
+6. Il récupère le mapping personnel auprès du Mock LMC.
+7. Il résout l’Agent Key et sa version exacte.
+8. Il sélectionne la clé d’exécution Orq correspondant au projet.
+9. Il exécute le Managed Agent avec la version explicitement sélectionnée.
 
-A. Versioning
+Exemple :
 
-Peut-on conserver un seul Agent Key avec plusieurs versions utilisant différents modèles ?
+{
+  "model": "agent/<personal-orchestrator-key>@1.2.0",
+  "input": "Analyse mes issues Jira"
+}
 
-B. Exécution
+La version doit être récupérée depuis le mapping réel.
 
-Peut-on invoquer indépendamment ces versions sans PATCH à chaque changement ?
+Ne construis jamais une version supposée à partir du nom du modèle.
 
-C. Continuité
+Sécurité
 
-Que se passe-t-il lorsqu’une conversation passe de A à B puis revient à A ?
+Le frontend ne doit jamais choisir librement :
 
-Le previous_response_id permet-il de conserver le contexte ?
+* Une Agent Key.
+* Une version Orq.
+* Un Orq Project ID.
+* Une clé API.
+* Une référence de modèle Orq arbitraire.
 
-Si non, quelle alternative fonctionne le mieux ?
+Il peut uniquement sélectionner un modèle appartenant à la liste autorisée renvoyée par le backend.
 
-D. Concurrence
+Le backend doit revérifier cette autorisation à chaque exécution.
 
-Deux conversations peuvent-elles utiliser deux versions différentes simultanément sans interférence ?
+Si le mapping est manquant ou non provisionné, renvoyer une erreur explicite.
 
-E. Sous-agents
+Ne pas utiliser silencieusement un autre modèle.
 
-Les spécialistes Jira et GitLab peuvent-ils rester communs et conserver leur propre modèle ?
-
-F. Maintenance
-
-Comment maintenir les versions cohérentes lorsqu’on modifie le prompt, les outils ou les Skills ?
-
-G. Comparaison
-
-Compare les approches suivantes :
-
-Architecture	Agents logiques	Continuité	Concurrence	Maintenance
-Un agent avec PATCH runtime	Faible	À mesurer	À risque	Moyenne
-Un agent avec versions épinglées	Faible	À mesurer	À mesurer	À étudier
-Un agent distinct par modèle	Plus élevé	À reconstruire	Bonne	Plus lourde
-Un agent avec Routing Rules	Faible	Non démontrée	Non démontrée	Non retenue actuellement
-
-H. Recommandation
-
-Je veux une conclusion explicite :
-
-VALIDÉ — L’approche est compatible avec nos exigences.
-
-PARTIELLEMENT VALIDÉ — Elle fonctionne, mais nécessite des mécanismes supplémentaires.
-
-INVALIDÉ — Elle ne répond pas à nos besoins.
-
-INDÉTERMINÉ — Les tests ne permettent pas de conclure.
-
-Pour chaque conclusion importante, indique les traces, configurations ou réponses API qui la justifient.
-
-Ne présente pas comme validée une fonctionnalité uniquement documentée.
+Ne pas basculer silencieusement vers une clé globale multi-projets.
 
 ⸻
 
-17. Consignes finales
+9. Persistance du modèle sélectionné
 
-Ce POC doit se concentrer sur une seule décision architecturale :
+Nous voulons conserver le fonctionnement actuel des conversations.
 
-Peut-on utiliser plusieurs versions publiées d’un même Managed Agent comme variantes de modèles, tout en conservant deux spécialistes communs et une continuité conversationnelle satisfaisante ?
+Chaque thread reste associé à un projet LMC immuable.
 
-Les tests les plus importants sont :
+Ajouter une gestion persistante du modèle sélectionné.
 
-1. L’invocation de plusieurs versions sans PATCH runtime.
-2. La concurrence entre versions.
-3. La continuité de conversation A → B → A.
-4. La stabilité des spécialistes Jira et GitLab.
-5. La maintenance des variantes lors d’une évolution du prompt.
+Exemple
 
-Tu peux exécuter les tests réels sur les ressources temporaires isolées de ce POC.
+Conversation #123 :
 
-Ne lance aucune modification sur les applications opérationnelles.
+Projet : Alpha
+Utilisateur : User A
+Modèle sélectionné : Mistral Medium
 
-N’implémente pas encore cette architecture dans Engineering Companion ou le Mock LMC.
+Lorsqu’on recharge la page, le sélecteur doit afficher le modèle réellement sélectionné.
 
-À la fin, fournis les résultats détaillés et une recommandation.
+Lorsqu’on change de conversation, chaque thread doit retrouver son propre modèle.
 
-Nous déciderons ensuite ensemble si cette stratégie doit devenir notre architecture cible.
+Lorsqu’on crée une conversation, utiliser le modèle par défaut autorisé du projet.
+
+Historique des modèles utilisés
+
+Pour chaque réponse de l’assistant, conserver les informations nécessaires à l’audit :
+
+* Modèle LMC demandé.
+* Modèle Orq réellement résolu.
+* Agent Key.
+* Version Orq exécutée.
+* Response ID.
+* Trace ID, si disponible.
+
+Ces informations doivent rester côté backend ou dans les métadonnées persistantes appropriées.
+
+L’utilisateur doit pouvoir retrouver ses messages même après avoir changé de modèle.
+
+Compatibilité
+
+Ne casse pas les conversations existantes.
+
+Prévois une valeur par défaut ou une migration pour les threads créés avant l’implémentation.
+
+Ne modifie pas les Project IDs existants.
+
+Ne mélange jamais les conversations de deux projets différents.
+
+⸻
+
+10. Continuité conversationnelle
+
+C’est une partie critique de l’implémentation.
+
+Le POC a démontré :
+
+* La continuité technique A → B → A.
+* La conservation des faits et décisions dans les scénarios testés.
+* La conservation imparfaite de certains anciens résultats d’outils.
+* Le succès de la reconstruction explicite de l’historique dans le test exhaustif.
+
+Nous voulons intégrer une stratégie robuste dans Engineering Companion.
+
+10.1. Même version
+
+Lorsque deux tours successifs utilisent exactement la même configuration d’exécution compatible, continuer à exploiter previous_response_id conformément au fonctionnement déjà validé.
+
+10.2. Changement de version
+
+Lorsqu’un utilisateur change de modèle :
+
+* Conserver le même thread.
+* Conserver tous les messages précédents.
+* Détecter le changement de version.
+* Déterminer explicitement la stratégie de continuité.
+* Reconstruire le contexte nécessaire si l’on ouvre un nouveau segment d’exécution.
+
+Pour cette première implémentation, privilégier une reconstruction explicite suffisamment complète lors des changements de version, plutôt que de dépendre exclusivement de la continuité implicite d’Orq.
+
+Ne réutilise pas un ancien previous_response_id associé à une branche antérieure en ignorant les messages intermédiaires.
+
+Exemple
+
+Conversation #123
+│
+├── Message 1 → Small v1.1.0
+├── Message 2 → Small v1.1.0
+│
+├── Changement vers Medium
+│
+├── Message 3 → Medium v1.2.0
+├── Message 4 → Medium v1.2.0
+│
+├── Changement vers Small
+│
+└── Message 5 → Small v1.1.0
+
+Le message 5 doit prendre en compte les informations produites aux messages 3 et 4.
+
+Il ne doit pas simplement reprendre une ancienne branche Small ignorant les échanges Medium.
+
+10.3. Résultats d’outils
+
+Le rapport du POC montre que les résultats d’outils précédents ne sont pas toujours récupérés exhaustivement.
+
+Prends ce problème en compte.
+
+Examine comment Engineering Companion persiste actuellement :
+
+* Les messages.
+* Les tool calls.
+* Les résultats des outils.
+* Les parties structurées.
+* Les références Jira/GitLab.
+
+Améliore uniquement ce qui est nécessaire pour conserver et réinjecter les informations utiles lors d’un changement de modèle.
+
+Lorsque les données sont disponibles, ne les remplace pas systématiquement par un simple résumé qui pourrait perdre des détails importants.
+
+Prévois une gestion de la taille du contexte pour éviter des reconstructions illimitées.
+
+Si certains résultats ne peuvent pas être récupérés intégralement, documente clairement cette limite.
+
+Objectif : préserver la continuité des conversations et les résultats importants, pas prétendre transférer le raisonnement interne caché d’un modèle à l’autre.
+
+⸻
+
+11. Interface Engineering Companion
+
+Réutilise le sélecteur de modèle existant.
+
+Ne refais pas toute l’interface.
+
+Je veux :
+
+* Afficher uniquement les modèles autorisés dans le projet.
+* Afficher le modèle réellement sélectionné.
+* Permettre de changer de modèle dans une conversation existante.
+* Conserver la conversation affichée.
+* Utiliser réellement la version correspondant au modèle choisi.
+* Préserver le streaming des réponses.
+* Préserver les appels Jira/GitLab.
+* Afficher une erreur compréhensible si la version demandée n’est pas provisionnée.
+
+Supprime l’indication selon laquelle la sélection du modèle n’est pas appliquée, uniquement lorsque la fonctionnalité est effectivement opérationnelle.
+
+Ne présente jamais un changement de modèle comme réussi si le backend n’a pas exécuté la bonne version.
+
+⸻
+
+12. Tests obligatoires
+
+Je veux des tests automatisés et des vérifications réelles.
+
+Provisioning
+
+* Un utilisateur avec un seul modèle.
+* Un utilisateur avec plusieurs modèles.
+* Deux utilisateurs dans le même projet.
+* Un utilisateur dans deux projets.
+* Reprovisioning sans changement.
+* Ajout d’un modèle.
+* Retrait d’un modèle.
+* Changement du modèle par défaut.
+* Échec partiel pendant la publication d’une version.
+* Réutilisation des spécialistes existants.
+
+Engineering Companion
+
+* Nouvelle conversation avec le modèle par défaut.
+* Sélection de Mistral Small.
+* Sélection de Mistral Medium.
+* Vérification de la version réellement exécutée.
+* Changement Small → Medium.
+* Changement Medium → Small.
+* Conservation du contexte.
+* Conservation des informations issues des outils.
+* Rechargement de la page.
+* Changement entre deux conversations.
+* Deux conversations simultanées avec deux modèles.
+* Refus d’un modèle non autorisé.
+* Refus d’une version non provisionnée.
+* Isolation entre projets.
+* Maintien du fonctionnement Jira/GitLab.
+
+Vérification Orq.ai
+
+Utilise les traces pour confirmer :
+
+* La même Agent Key pour les différentes versions personnelles.
+* Le bon modèle pour chaque version.
+* L’absence de PATCH lors du changement dans le chat.
+* La bonne Identity.
+* Le bon projet Orq.
+* Le fonctionnement des spécialistes.
+
+Ne considère pas qu’un changement visuel dans le sélecteur suffit.
+
+⸻
+
+13. Stratégie d’implémentation
+
+Travaille par étapes pour limiter les régressions.
+
+Étape A — Mock LMC
+
+Implémenter :
+
+* La publication des versions.
+* La persistance des mappings.
+* L’idempotence.
+* La réconciliation des modèles.
+* L’exposition des mappings au backend Engineering Companion.
+
+Vérifier que le provisioning fonctionne avant de modifier le chat.
+
+Étape B — Backend Engineering Companion
+
+Implémenter :
+
+* La résolution du modèle autorisé.
+* La récupération de la version.
+* L’exécution de l’Agent Key versionnée.
+* La persistance des informations d’exécution.
+* La continuité conversationnelle.
+
+Étape C — Frontend Engineering Companion
+
+Connecter le sélecteur de modèle au backend.
+
+Conserver l’interface existante.
+
+Étape D — Tests end-to-end
+
+Tester le fonctionnement complet :
+
+Mock LMC → Provisioning Orq → Engineering Companion → Changement de modèle → Continuité de conversation.
+
+À chaque étape, exécuter les tests pertinents.
+
+Corriger les régressions avant de continuer.
+
+⸻
+
+14. Précautions sur les ressources existantes
+
+Le projet contient déjà des ressources Orq opérationnelles.
+
+Ne réalise aucune suppression globale.
+
+Ne recrée pas inutilement les projets Orq existants.
+
+Ne supprime pas les orchestrateurs personnels existants.
+
+Ne supprime pas les spécialistes personnels existants.
+
+Ne supprime pas les identités, budgets, configurations ou credentials existants.
+
+Les modifications de provisioning doivent être incrémentales.
+
+Si une ressource existante ne peut pas être migrée proprement, explique le blocage et propose une solution non destructive.
+
+Les opérations de publication sur Orq doivent être limitées aux ressources appartenant au Mock LMC et explicitement ciblées.
+
+Si une opération risque de modifier des agents ou projets partagés hors de notre périmètre, ne l’exécute pas sans validation.
+
+⸻
+
+15. Résultat final attendu
+
+Je veux pouvoir effectuer ce scénario réel :
+
+1. J’ouvre le Mock LMC.
+2. Je sélectionne un projet.
+3. J’autorise trois modèles.
+4. Je lance le provisioning.
+5. Je vérifie dans Orq.ai qu’un utilisateur possède un orchestrateur personnel avec trois versions correspondant aux modèles.
+6. J’ouvre Engineering Companion.
+7. Je sélectionne ce projet.
+8. Je démarre une conversation avec Mistral Small.
+9. Je demande à l’orchestrateur d’utiliser Jira Specialist.
+10. Je continue la conversation.
+11. Je sélectionne Mistral Medium.
+12. Je demande à l’agent de poursuivre l’analyse précédente.
+13. Je vérifie que Medium est réellement utilisé et dispose des informations précédentes.
+14. Je reviens à Mistral Small.
+15. Je vérifie que les messages échangés sous Medium sont toujours pris en compte.
+16. Je recharge l’application et retrouve la conversation et le modèle sélectionné.
+
+Tout cela doit fonctionner sans recréer l’orchestrateur, sans PATCH pendant les conversations et sans changer de thread.
+
+⸻
+
+16. Livrable
+
+Implémente réellement les changements dans les projets existants.
+
+À la fin, fournis :
+
+* Les fichiers modifiés.
+* Les migrations SQLite éventuelles.
+* Les endpoints créés ou modifiés.
+* Les changements de provisioning.
+* Les changements du backend Engineering Companion.
+* Les changements du frontend.
+* Les tests exécutés et leurs résultats.
+* Les limites encore connues.
+* Les commandes nécessaires pour lancer et tester les applications.
+
+Ne te limite pas à produire une analyse.
+
+Ne crée pas un nouveau POC indépendant.
+
+Notre décision architecturale est prise : un orchestrateur logique personnel, plusieurs versions épinglées correspondant aux modèles autorisés, et des spécialistes Jira/GitLab communs.
+
+L’objectif est maintenant d’obtenir une première implémentation complète et fonctionnelle de cette architecture dans Mock LMC et Engineering Companion.
+
+Travaille de façon incrémentale, conserve l’existant et privilégie le code réellement exécutable aux documents théoriques.
