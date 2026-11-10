@@ -1,29 +1,48 @@
-Nouvelle information importante : j’ai consulté l’interface Vault du déploiement Engineering Companion.
+Nouvelle information importante : nous avons identifié la véritable cause de l’incident Jira/GitLab.
 
-Dans la configuration du backend déployé, la variable CONNECTOR_SECRET_BACKEND vaut vault.
+Un collègue avait effectué une mauvaise manipulation sur le serveur MCP. Il l’a redéployé correctement et les appels MCP fonctionnent de nouveau.
 
-J’ai également constaté que le chemin uc/connectors/ contient plusieurs sous-dossiers identifiés par des UUID.
+Il est donc possible que les nombreuses modifications que nous avons récemment réalisées pour résoudre cette panne soient inutiles.
 
-Cela suggère que l’architecture historique d’enregistrement des credentials dans Vault existe effectivement.
+Je veux que nous revenions à une base stable.
 
-Je veux maintenant une investigation ciblée, uniquement en lecture seule et sans aucune modification.
+Pour l’instant, ne modifie rien et ne lance aucun revert automatiquement.
 
-Vérifie :
+Examine les modifications réalisées lors de notre dernière intervention MCP sur Engineering Companion, Mock LMC, lea-alm-mcp et les configurations Docker/TLS.
 
-1. Si ces dossiers UUID correspondent effectivement aux Keycloak sub des utilisateurs, sans énumérer ni exposer des données d’autres utilisateurs.
-2. Si les chemins construits par lib/connectors/vault.ts dans Engineering Companion correspondent aux chemins recherchés par lea-alm-mcp/app/connector_tokens.py.
-3. Si le backend déployé et le MCP distant utilisent le même Vault, le même montage KV et le même chemin logique uc/connectors/.
-4. Si la configuration locale CONNECTOR_SECRET_BACKEND=redis explique l’absence de PAT accessibles au MCP.
-5. Si le mécanisme Vault déjà implémenté dans Engineering Companion pourrait être réutilisé localement, plutôt que de développer un autre stockage.
-6. Quels paramètres et droits sont nécessaires pour ce fonctionnement, sans afficher, copier ou réutiliser les credentials de production.
-7. Quels blocages restent indépendants de Vault, notamment X-LMC-Project-ID et l’API d’autorisation du projet LMC.
+L’objectif est de retrouver, autant que possible, l’état qui existait juste après l’implémentation du versioning des orchestrateurs, mais avant notre tentative de correction de l’incident MCP.
 
-Ne modifie aucun secret, AppRole, ACL, chemin, configuration distante, ressource Orq ou déploiement Kubernetes.
+Il faut impérativement conserver :
 
-Ne récupère et n’affiche aucune valeur de PAT, VAULT_SECRET_ID ou autre credential.
+* Le versioning des Managed Agents.
+* Le mapping persistant modèle → version.
+* Le provisioning existant.
+* Le changement de modèle dans Engineering Companion.
+* La continuité conversationnelle.
+* Les spécialistes Jira/GitLab partagés.
 
-Ne modifie pas encore CONNECTOR_SECRET_BACKEND dans l’environnement local.
+Identifie les modifications liées uniquement à la panne MCP désormais résolue, notamment l’ajout de l’endpoint /api/v1/projects/{id}/backends, les changements d’autorisation, la transmission du Project ID, les modifications du serveur MCP et les configurations Docker/TLS.
 
-Je veux que tu me dises précisément si nous pouvons restaurer le fonctionnement historique du backend Vault existant, quelles différences existent entre le local et le déploiement, et quelles actions seraient ensuite nécessaires.
+Classe les modifications entre celles qu’on peut annuler sans risque et celles qui méritent d’être conservées indépendamment de l’incident.
 
-Ne touche pas au versioning des orchestrateurs et ne commence aucune migration.
+Attention : les modifications renforçant réellement la sécurité ne doivent pas être annulées à l’aveugle, mais elles doivent rester compatibles avec le fonctionnement existant.
+
+Vérifie également si certaines modifications peuvent être interdépendantes.
+
+N’utilise aucune commande destructive comme git reset --hard ou git clean.
+
+Prépare un point de restauration non destructif et un plan de revert sélectif, sans écraser les modifications préexistantes ou celles réalisées pour le versioning.
+
+Ne touche à aucun secret Vault, aucune ressource Orq partagée et aucun déploiement distant.
+
+Je veux à la fin :
+
+1. La liste précise des modifications de notre intervention MCP.
+2. Les modifications qu’il est préférable d’annuler.
+3. Celles qu’il faut conserver.
+4. Les risques éventuels du rollback.
+5. Un plan de retour à l’état stable, avec des tests de non-régression.
+
+Ne fais pas encore les annulations. Je veux valider le plan.
+
+Concernant l’isolation des connecteurs par Project ID LMC, nous traiterons ce sujet séparément. Ce n’est plus un correctif de panne, mais une éventuelle évolution de l’autorisation métier.
