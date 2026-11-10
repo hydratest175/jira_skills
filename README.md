@@ -1,48 +1,39 @@
-Nouvelle information importante : nous avons identifié la véritable cause de l’incident Jira/GitLab.
+J’ai étudié ton plan de rollback et je valide son principe général.
 
-Un collègue avait effectué une mauvaise manipulation sur le serveur MCP. Il l’a redéployé correctement et les appels MCP fonctionnent de nouveau.
+Nous voulons revenir sur les changements inutiles liés à l’incident MCP, puisque la véritable cause était un problème de déploiement externe désormais corrigé.
 
-Il est donc possible que les nombreuses modifications que nous avons récemment réalisées pour résoudre cette panne soient inutiles.
+En revanche, je veux que le rollback soit extrêmement ciblé.
 
-Je veux que nous revenions à une base stable.
+Je veux préserver intégralement :
 
-Pour l’instant, ne modifie rien et ne lance aucun revert automatiquement.
-
-Examine les modifications réalisées lors de notre dernière intervention MCP sur Engineering Companion, Mock LMC, lea-alm-mcp et les configurations Docker/TLS.
-
-L’objectif est de retrouver, autant que possible, l’état qui existait juste après l’implémentation du versioning des orchestrateurs, mais avant notre tentative de correction de l’incident MCP.
-
-Il faut impérativement conserver :
-
-* Le versioning des Managed Agents.
-* Le mapping persistant modèle → version.
-* Le provisioning existant.
-* Le changement de modèle dans Engineering Companion.
+* Le versioning des orchestrateurs.
+* Les mappings SQLite modèle/version.
+* Le provisioning Mock LMC.
+* La sélection dynamique du modèle.
 * La continuité conversationnelle.
-* Les spécialistes Jira/GitLab partagés.
+* Les spécialistes Jira/GitLab.
+* La logique de projet LMC qui existait avant notre dernière intervention.
+* Les améliorations de sécurité indépendantes de l’incident : validation TLS, suppression des tokens des logs et commandes, protection des chemins Vault.
 
-Identifie les modifications liées uniquement à la panne MCP désormais résolue, notamment l’ajout de l’endpoint /api/v1/projects/{id}/backends, les changements d’autorisation, la transmission du Project ID, les modifications du serveur MCP et les configurations Docker/TLS.
+Je veux retirer uniquement les ajouts devenus inutiles, notamment les éléments du nouveau contrat Mock LMC/MCP, après vérification qu’aucun composant encore utilisé n’en dépend.
 
-Classe les modifications entre celles qu’on peut annuler sans risque et celles qui méritent d’être conservées indépendamment de l’incident.
+La gestion de l’autorisation métier par projet dans le MCP reste un chantier séparé. Ne la retire pas implicitement pendant ce premier rollback.
 
-Attention : les modifications renforçant réellement la sécurité ne doivent pas être annulées à l’aveugle, mais elles doivent rester compatibles avec le fonctionnement existant.
+Procédure :
 
-Vérifie également si certaines modifications peuvent être interdépendantes.
+1. Crée une sauvegarde locale sécurisée de l’état actuel, incluant les modifications non commitées et les fichiers non suivis pertinents, sans copier de secrets.
+2. Prépare un rollback hunk par hunk, jamais par remplacement de fichiers entiers.
+3. Vérifie les dépendances entre les modifications avant de supprimer du code.
+4. Ne supprime aucune table SQLite et ne migre aucune donnée.
+5. N’utilise pas git reset --hard, git clean ou de restauration globale.
+6. Ne touche ni à Vault, ni aux ressources Orq, ni à Kubernetes ou aux déploiements distants.
+7. Exécute les tests de non-régression sur Engineering Companion, Mock LMC et MCP.
+8. Vérifie notamment que le changement de modèle Small → Medium → Small continue de fonctionner.
+9. Vérifie que le chemin Jira/GitLab reste compatible avec le MCP actuellement redéployé.
+10. Présente un bilan des modifications réellement annulées et conservées.
 
-N’utilise aucune commande destructive comme git reset --hard ou git clean.
+Avant d’appliquer le rollback, montre-moi le périmètre exact des portions de code que tu vas annuler et attends mon accord.
 
-Prépare un point de restauration non destructif et un plan de revert sélectif, sans écraser les modifications préexistantes ou celles réalisées pour le versioning.
+Je veux surtout éviter de détruire nos évolutions de versioning ou de réintroduire des vulnérabilités pour revenir à un état antérieur.
 
-Ne touche à aucun secret Vault, aucune ressource Orq partagée et aucun déploiement distant.
-
-Je veux à la fin :
-
-1. La liste précise des modifications de notre intervention MCP.
-2. Les modifications qu’il est préférable d’annuler.
-3. Celles qu’il faut conserver.
-4. Les risques éventuels du rollback.
-5. Un plan de retour à l’état stable, avec des tests de non-régression.
-
-Ne fais pas encore les annulations. Je veux valider le plan.
-
-Concernant l’isolation des connecteurs par Project ID LMC, nous traiterons ce sujet séparément. Ce n’est plus un correctif de panne, mais une éventuelle évolution de l’autorisation métier.
+Le but est de simplifier le code, pas d’annuler tout le travail récent.
