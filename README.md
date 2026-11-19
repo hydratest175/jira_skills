@@ -1,17 +1,17 @@
-Je valide l’option 1.
+Le plan de la MR 1 est validé.
 
-Tu es autorisé à adapter minimalement backend/tests/test_db_metadata_alignment.py afin que les tests prennent en compte la nouvelle table orq_project_mappings.
+Tu peux procéder à son implémentation locale en respectant strictement le périmètre présenté.
 
-Conditions :
+Précisions :
 
-* Vérifie que le passage de 30 à 31 tables correspond exactement à l’ajout attendu.
-* Mets à jour uniquement les assertions nécessaires.
-* Ajoute une vérification explicite de la présence de orq_project_mappings si cela est pertinent pour le test.
-* Préserve intégralement toutes les autres modifications préexistantes du fichier.
-* Ne touche pas aux migrations baseline existantes ni à leurs checksums.
-* Ne modifie aucun autre comportement du LMC.
-* Documente cette adaptation dans LMC_ORQ_INTEGRATION.md, en expliquant pourquoi le test devait évoluer.
+* Conserver la migration 0003 indépendante des migrations baseline existantes.
+* Ne pas modifier les changements préexistants du workspace.
+* Vérifier les contraintes PostgreSQL et la correspondance exacte avec le modèle SQLAlchemy.
+* Ne pas ajouter de comportement de suppression distante Orq : ce sujet sera traité dans un lot ultérieur.
+* Exécuter les tests ciblés et la suite locale pertinente.
+* Mettre à jour documentation/LMC_ORQ_INTEGRATION.md avec les modifications exactes, leur justification, leurs conséquences et les tests.
+* Ne pas modifier les workflows, API, Workers ou autres composants non nécessaires à ce lot.
 
-Tu peux ensuite poursuivre et terminer l’implémentation locale du lot 1, exécuter les tests et me présenter le diff complet.
+Aucune action Git d’écriture : pas de commit, push, changement de branche, stash ni Merge Request.
 
-Rappel : aucun commit, push, changement de branche ni Merge Request. Je gère exclusivement Git/GitLab.
+À la fin, présente-moi les fichiers modifiés, le diff, les résultats des tests et les éventuelles limitations. Je gérerai personnellement GitLab.
