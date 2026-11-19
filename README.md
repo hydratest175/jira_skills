@@ -1,16 +1,17 @@
-Je valide l’option 2 : /workspace/lcc/documentation/LMC_ORQ_INTEGRATION.md.
+Je valide l’option 1.
 
-Je veux que la documentation soit versionnée avec le code LMC pour pouvoir l’inclure dans chaque future Merge Request.
+Tu es autorisé à adapter minimalement backend/tests/test_db_metadata_alignment.py afin que les tests prennent en compte la nouvelle table orq_project_mappings.
 
-Tu peux poursuivre la MR 1 avec le périmètre minimal que tu as identifié.
+Conditions :
 
-Quelques précisions importantes :
+* Vérifie que le passage de 30 à 31 tables correspond exactement à l’ajout attendu.
+* Mets à jour uniquement les assertions nécessaires.
+* Ajoute une vérification explicite de la présence de orq_project_mappings si cela est pertinent pour le test.
+* Préserve intégralement toutes les autres modifications préexistantes du fichier.
+* Ne touche pas aux migrations baseline existantes ni à leurs checksums.
+* Ne modifie aucun autre comportement du LMC.
+* Documente cette adaptation dans LMC_ORQ_INTEGRATION.md, en expliquant pourquoi le test devait évoluer.
 
-1. Ne modifie sous aucun prétexte les migrations baseline existantes ni leurs modifications préexistantes.
-2. Vérifie bien la distinction entre l’identifiant interne du projet en base de données et le project_ref public.
-3. La nouvelle table doit uniquement servir à persister le mapping durable LMC ↔ Orq. Ne crée pas de mécanisme de provisioning ou d’orchestration supplémentaire.
-4. Documente chaque modification dans LMC_ORQ_INTEGRATION.md : fichiers modifiés, justification, avant/après, tests, impacts et rollback.
-5. Préserve toutes les autres modifications non commitées du workspace.
-6. Travaille exclusivement en local : aucun git add, commit, push, changement de branche ou création de MR. Je m’occupe personnellement de toute la partie Git/GitLab.
+Tu peux ensuite poursuivre et terminer l’implémentation locale du lot 1, exécuter les tests et me présenter le diff complet.
 
-À la fin, donne-moi le diff précis, les résultats des tests et le résumé des modifications pour que je puisse les examiner avant de créer ma MR.
+Rappel : aucun commit, push, changement de branche ni Merge Request. Je gère exclusivement Git/GitLab.
