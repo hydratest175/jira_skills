@@ -1,36 +1,23 @@
-Merci pour cette analyse. Nous avons maintenant suffisamment de preuves pour considérer les 27 échecs préexistants comme non bloquants pour MR 0 et MR 1, à condition de maintenir leur comparaison différentielle et leur documentation. Ne corrige pas ces tests hors périmètre.
+Avant de préparer nos stacked MR pour publication, je veux vérifier un point important : la compatibilité de notre intégration avec la configuration existante du LMC.
 
-Nous allons maintenant préparer la suite de notre intégration locale.
+Mon objectif est que les autres développeurs puissent récupérer le LMC avec nos modifications et continuer à le lancer exactement comme avant, sans devoir utiliser de nouveaux Dockerfiles, de nouvelles images Docker spécifiques, de nouvelles commandes ou une configuration supplémentaire inutile.
 
-Étape 1 — Sécurisation du worktree MR 0
+J’ai vu que tu avais créé des images et stacks Docker temporaires pendant les tests. Je veux m’assurer que ces ressources restent exclusivement locales et ne font pas partie des changements livrés.
 
-Examine et répare si nécessaire le lien Git du worktree lcc-mr0-alembic-baseline, sans perdre aucune modification.
+Effectue un audit strictement non destructif :
 
-Vérifie ensuite que les fichiers MR 0 et MR 1 sont toujours présents, correctement isolés et inchangés.
+1. Compare tous les changements locaux de MR 0 et MR 1 avec le main de référence, en tenant compte des fichiers modifiés et non suivis.
+2. Vérifie qu’aucun Dockerfile, fichier Docker Compose, .env.example, configuration de Dev Container, script de démarrage, pipeline CI/CD ou fichier de configuration du déploiement n’a été modifié ou ajouté par notre travail.
+3. Identifie les images, conteneurs, réseaux et volumes Docker créés spécifiquement pour nos tests, et vérifie lesquels existent encore. Ne supprime rien.
+4. Vérifie que les changements MR 0 et MR 1 ne nécessitent aucun nouveau service, aucune nouvelle variable d’environnement obligatoire et aucune nouvelle commande de lancement.
+5. Vérifie comment les migrations Alembic sont normalement appliquées lors du démarrage ou du déploiement du LMC. Confirme que notre migration 0003 est compatible avec ce mécanisme, en précisant toute opération réellement nécessaire.
+6. Distingue clairement les ressources temporaires de test des modifications qui seront réellement incluses dans les futures MR.
+7. Confirme, à partir des fichiers et validations disponibles, si un autre développeur pourra lancer le LMC avec les commandes et la configuration existantes.
 
-Ne crée aucune branche ni aucun commit.
+Ne modifie aucun fichier, conteneur, image, volume ou configuration pendant cet audit.
 
-Étape 2 — Qualification cumulative du LMC
+Ne fais aucun commit, branche, push, merge, rebase ou création de Merge Request. Tout reste local et je gère personnellement Git et GitLab.
 
-Nous avons déjà validé les migrations PostgreSQL et les tests ciblés. Je souhaite maintenant vérifier le fonctionnement du vrai LMC avec le code de nos modifications.
+Présente-moi un bilan clair en français, avec les éventuels écarts identifiés. Mets à jour la documentation technique en anglais uniquement si une information pertinente est manquante ou incorrecte, sans élargir le périmètre des MR.
 
-Étudie puis, si l’isolation est garantie, exécute une validation locale du backend et de l’application pour :
-
-* MR 0 seule.
-* MR 0 + MR 1.
-
-Utilise des builds, conteneurs, ports et bases de test isolés. Préserve intégralement les services Docker et la base persistante actuellement utilisés par le LMC fonctionnel.
-
-Vérifie le démarrage, les health checks, les fonctionnalités existantes accessibles et l’absence de régression. Ne considère pas le démarrage du LMC actuel sur main comme une preuve pour MR 0 ou MR 1.
-
-Ne fais pas encore de walkthrough fonctionnel détaillé : nous nous en occuperons lorsque le système sera entièrement prêt.
-
-Maintiens la documentation technique existante en anglais avec les résultats réellement exécutés.
-
-Contraintes impératives
-
-Tout reste local. Aucun commit, aucune création de branche, aucun push, aucune Merge Request, aucun merge ou rebase. Je gère moi-même toutes ces opérations.
-
-Aucune modification de ressource distante ou de base partagée. Aucune nouvelle fonctionnalité, aucun refactoring non nécessaire.
-
-À la fin, donne-moi un bilan clair des validations MR 0 et MR 1, des éventuels blocages et de ce qu’il reste à faire avant de préparer les MR empilées. Arrête-toi après cette qualification.
+Ne commence aucune nouvelle fonctionnalité.
