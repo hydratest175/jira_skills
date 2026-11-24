@@ -1,49 +1,26 @@
-Nous avons reçu deux nouvelles informations concernant l’architecture du LMC.
+Merci pour l’audit Temporal. Nous allons suivre ton découpage en commençant uniquement par T1 — Orq Project Reconciliation Core.
 
-1. Temporal
+L’objectif est de fiabiliser la création ou la réutilisation d’un projet Orq.ai avant de construire des activités Temporal susceptibles d’être réexécutées.
 
-L’équipe souhaite que nous utilisions Temporal pour orchestrer le provisioning des ressources Orq.ai.
+Avant toute modification, examine en détail le helper Orq déjà présent dans le vrai LMC et les mécanismes de réconciliation/idempotence déjà développés dans notre Mock LMC. Réutilise le code existant lorsque c’est pertinent, sans introduire de duplication inutile.
 
-Temporal est déjà déployé et healthy en préproduction, mais nous ne savons pas s’il est intégré au code du LMC.
+Implémente ensuite uniquement le périmètre minimal de T1 :
 
-Commence par analyser en lecture seule le dépôt LCC et les composants locaux disponibles pour déterminer :
+* Définir le contrat d’entrée d’un projet Orq désiré.
+* Définir une interface testable pour les opérations Orq nécessaires.
+* Réconcilier un projet existant avant de tenter une création.
+* Identifier les cas ambigus et éviter les créations en double lors des retries.
+* Distinguer les résultats created et reused, et classifier correctement les échecs.
+* Ajouter des tests unitaires couvrant les succès, retries, timeouts, erreurs et tentatives concurrentes pertinentes.
 
-* Si Temporal est déjà utilisé dans le LMC.
-* Quels workflows, activities, workers, clients ou configurations existent.
-* Si l’architecture actuelle du LMC prévoit déjà une intégration Temporal.
-* Comment nous pourrions réutiliser les conventions et composants existants pour notre provisioning Orq.ai.
-* Quel serait le découpage le plus pertinent en petites stacked MR.
+Ne suppose pas que la simple recherche avant création garantit l’idempotence. Vérifie les garanties réellement offertes par les APIs et le client Orq existants. Signale les limites si une création exactement une fois ne peut pas être garantie.
 
-N’invente pas une nouvelle architecture ou de nouveaux services sans avoir examiné l’existant.
+Isolation du travail : MR 0 et MR 1 sont actuellement des modifications locales non publiées. Préserve-les intégralement. Prépare T1 dans un espace de travail local distinct, sans mélanger ses modifications avec celles des autres lots. Vérifie l’état des worktrees et les dépendances avant de modifier les fichiers.
 
-2. Alembic
+Exclusions : aucun SDK Temporal, aucun Worker, aucune nouvelle table, aucune migration, aucun endpoint de provisioning et aucun appel distant réel. Ne modifie pas Docker, Kubernetes, la CI/CD ou la configuration de lancement du LMC.
 
-Nous avons appris que l’intégration officielle d’Alembic dans le LMC est actuellement en cours de développement par une autre personne.
+Exécute les tests ciblés et les vérifications de non-régression réellement disponibles, puis documente précisément les résultats et limites en anglais.
 
-Nous décidons donc de suspendre temporairement notre MR 0 et toute intervention sur le mécanisme de migration officiel.
+Tout reste local. Ne crée aucune branche Git, aucun commit, push, merge, rebase ou Merge Request. Je gère personnellement toutes ces opérations.
 
-Préserve absolument les modifications locales de MR 0 et MR 1, ainsi que leur documentation et leurs tests.
-
-Nous pouvons continuer à développer et tester localement l’intégration Orq.ai, mais nous devons isoler les dépendances à la migration 0003 et ne pas considérer une fonctionnalité dépendant de cette table comme déployable avant validation de l’intégration Alembic officielle.
-
-Évite toute modification des migrations historiques, du bootstrap PostgreSQL et du pipeline de déploiement.
-
-3. Suite du travail
-
-Je souhaite que nous continuions à préparer progressivement l’intégration du POC Orq.ai dans le vrai LMC, en utilisant Temporal lorsque c’est pertinent.
-
-Propose un plan de petites stacked MR, en distinguant :
-
-* Les travaux réalisables indépendamment d’Alembic.
-* Les travaux pouvant être développés et testés localement avec notre migration existante.
-* Les travaux bloqués pour la validation ou le déploiement tant que le chantier Alembic n’est pas terminé.
-
-Pour le moment, réalise uniquement cet audit et propose le prochain lot d’implémentation. Ne code pas encore une nouvelle fonctionnalité.
-
-Maintiens la documentation technique en anglais pour les autres développeurs.
-
-Tout reste local. Aucun commit, création de branche, push, merge, rebase ou création de Merge Request. Je m’occupe personnellement de Git et GitLab.
-
-Ne modifie aucune ressource Temporal, Orq.ai, Vault, Kubernetes ou autre environnement distant.
-
-Présente tes conclusions en français, puis arrête-toi.
+À la fin, fournis un rapport en français avec les fichiers modifiés, les décisions techniques, les tests exécutés et les éventuels blocages. Ne commence pas T2 automatiquement.
