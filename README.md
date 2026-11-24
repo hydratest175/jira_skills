@@ -1,26 +1,22 @@
-Merci pour l’audit Temporal. Nous allons suivre ton découpage en commençant uniquement par T1 — Orq Project Reconciliation Core.
+Merci, T1 est implémenté et les premiers résultats sont bons.
 
-L’objectif est de fiabiliser la création ou la réutilisation d’un projet Orq.ai avant de construire des activités Temporal susceptibles d’être réexécutées.
+Avant de commencer T2, je souhaite une dernière qualification technique ciblée de T1, sans élargir son périmètre.
 
-Avant toute modification, examine en détail le helper Orq déjà présent dans le vrai LMC et les mécanismes de réconciliation/idempotence déjà développés dans notre Mock LMC. Réutilise le code existant lorsque c’est pertinent, sans introduire de duplication inutile.
+Vérifie particulièrement :
 
-Implémente ensuite uniquement le périmètre minimal de T1 :
+1. Que le contrat OrqProjectsGateway et ses méthodes correspondent réellement au client et aux réponses API Orq disponibles dans notre environnement.
+2. Que la pagination, les champs d’identification, les descriptions, les états archivés et les codes HTTP sont interprétés correctement.
+3. Que nous ne pouvons pas réutiliser par erreur un projet Orq appartenant à un autre contexte simplement parce qu’il possède le même nom et la même description.
+4. Que les situations de timeout, concurrence, résultat incertain et compensation sont couvertes de manière sûre, en explicitant les limites impossibles à garantir côté client.
+5. Que T1 reste compatible avec le helper Orq existant et ne crée aucune régression.
+6. Que les changements nécessaires pour une future activité Temporal sont clairement identifiés, sans implémenter Temporal maintenant.
 
-* Définir le contrat d’entrée d’un projet Orq désiré.
-* Définir une interface testable pour les opérations Orq nécessaires.
-* Réconcilier un projet existant avant de tenter une création.
-* Identifier les cas ambigus et éviter les créations en double lors des retries.
-* Distinguer les résultats created et reused, et classifier correctement les échecs.
-* Ajouter des tests unitaires couvrant les succès, retries, timeouts, erreurs et tentatives concurrentes pertinentes.
+Utilise des mocks ou des tests de contrat locaux. N’effectue aucun appel distant modifiant des ressources Orq.
 
-Ne suppose pas que la simple recherche avant création garantit l’idempotence. Vérifie les garanties réellement offertes par les APIs et le client Orq existants. Signale les limites si une création exactement une fois ne peut pas être garantie.
+Exécute les validations possibles, puis actualise uniquement si nécessaire la documentation anglaise existante.
 
-Isolation du travail : MR 0 et MR 1 sont actuellement des modifications locales non publiées. Préserve-les intégralement. Prépare T1 dans un espace de travail local distinct, sans mélanger ses modifications avec celles des autres lots. Vérifie l’état des worktrees et les dépendances avant de modifier les fichiers.
+Préserve intégralement MR 0, MR 1 et T1. Aucun commit, création de branche, push, merge, rebase ou Merge Request. Aucune modification de Docker, Kubernetes ou du runtime.
 
-Exclusions : aucun SDK Temporal, aucun Worker, aucune nouvelle table, aucune migration, aucun endpoint de provisioning et aucun appel distant réel. Ne modifie pas Docker, Kubernetes, la CI/CD ou la configuration de lancement du LMC.
+À la fin, donne-moi ton verdict sur la préparation de T1 pour une future intégration Temporal, ses limites connues et les éventuelles corrections strictement nécessaires.
 
-Exécute les tests ciblés et les vérifications de non-régression réellement disponibles, puis documente précisément les résultats et limites en anglais.
-
-Tout reste local. Ne crée aucune branche Git, aucun commit, push, merge, rebase ou Merge Request. Je gère personnellement toutes ces opérations.
-
-À la fin, fournis un rapport en français avec les fichiers modifiés, les décisions techniques, les tests exécutés et les éventuels blocages. Ne commence pas T2 automatiquement.
+Ne commence pas T2 automatiquement.
