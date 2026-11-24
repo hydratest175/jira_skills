@@ -1,34 +1,49 @@
-Merci pour l’analyse. Je suis favorable à un mécanisme de migrations PostgreSQL dédié, distinct du démarrage normal du LMC, mais je ne veux pas introduire prématurément de changements Kubernetes ou CI/CD.
+Nous avons reçu deux nouvelles informations concernant l’architecture du LMC.
 
-Avant toute implémentation, je souhaite approfondir la stratégie de migration.
+1. Temporal
 
-Objectif : garantir que les futures migrations Alembic pourront être appliquées de manière fiable, sans détruire les données existantes ni modifier inutilement le fonctionnement normal du LMC.
+L’équipe souhaite que nous utilisions Temporal pour orchestrer le provisioning des ressources Orq.ai.
 
-Analyse en lecture seule :
+Temporal est déjà déployé et healthy en préproduction, mais nous ne savons pas s’il est intégré au code du LMC.
 
-1. Les mécanismes existants de migration et de bootstrap PostgreSQL.
-2. Les différents états possibles des bases déployées, notamment avec ou sans table alembic_version.
-3. Les risques liés à l’adoption d’Alembic sur une base historiquement créée à partir des scripts SQL.
-4. Les préconditions nécessaires avant de considérer qu’une base correspond réellement à la révision 0002.
-5. Les conséquences sur les déploiements futurs, les redémarrages, les rollbacks et les déploiements concurrents.
-6. La possibilité d’utiliser les outils et images de production existants sans nouvelle dépendance.
-7. Le découpage minimal des changements nécessaires dans une micro-MR distincte, en préservant MR 0 et MR 1.
+Commence par analyser en lecture seule le dépôt LCC et les composants locaux disponibles pour déterminer :
 
-Ne considère jamais la présence de schema_migrations comme une preuve suffisante pour initialiser automatiquement alembic_version.
+* Si Temporal est déjà utilisé dans le LMC.
+* Quels workflows, activities, workers, clients ou configurations existent.
+* Si l’architecture actuelle du LMC prévoit déjà une intégration Temporal.
+* Comment nous pourrions réutiliser les conventions et composants existants pour notre provisioning Orq.ai.
+* Quel serait le découpage le plus pertinent en petites stacked MR.
 
-Ne fais aucun alembic stamp ni aucune migration sur une base existante sans vérification explicite et autorisation.
+N’invente pas une nouvelle architecture ou de nouveaux services sans avoir examiné l’existant.
 
-Propose une stratégie pour tester localement, sur des bases jetables, les différents états historiques et le mécanisme envisagé.
+2. Alembic
 
-Contraintes :
+Nous avons appris que l’intégration officielle d’Alembic dans le LMC est actuellement en cours de développement par une autre personne.
 
-* Aucun changement du code pour l’instant.
-* Aucun déploiement ni accès modifiant les environnements distants.
-* Aucun commit, branche, push, merge, rebase ou création de Merge Request.
-* Préserver tous les fichiers et modifications MR 0 et MR 1.
-* Ne pas modifier le mécanisme de démarrage existant du LMC.
-* Documentation technique en anglais.
+Nous décidons donc de suspendre temporairement notre MR 0 et toute intervention sur le mécanisme de migration officiel.
 
-Présente en français les solutions possibles, les risques, la solution recommandée et le découpage envisagé.
+Préserve absolument les modifications locales de MR 0 et MR 1, ainsi que leur documentation et leurs tests.
 
-Arrête-toi après cette étude. Nous déciderons ensuite si une micro-MR spécifique est nécessaire et comment l’insérer dans notre stack.
+Nous pouvons continuer à développer et tester localement l’intégration Orq.ai, mais nous devons isoler les dépendances à la migration 0003 et ne pas considérer une fonctionnalité dépendant de cette table comme déployable avant validation de l’intégration Alembic officielle.
+
+Évite toute modification des migrations historiques, du bootstrap PostgreSQL et du pipeline de déploiement.
+
+3. Suite du travail
+
+Je souhaite que nous continuions à préparer progressivement l’intégration du POC Orq.ai dans le vrai LMC, en utilisant Temporal lorsque c’est pertinent.
+
+Propose un plan de petites stacked MR, en distinguant :
+
+* Les travaux réalisables indépendamment d’Alembic.
+* Les travaux pouvant être développés et testés localement avec notre migration existante.
+* Les travaux bloqués pour la validation ou le déploiement tant que le chantier Alembic n’est pas terminé.
+
+Pour le moment, réalise uniquement cet audit et propose le prochain lot d’implémentation. Ne code pas encore une nouvelle fonctionnalité.
+
+Maintiens la documentation technique en anglais pour les autres développeurs.
+
+Tout reste local. Aucun commit, création de branche, push, merge, rebase ou création de Merge Request. Je m’occupe personnellement de Git et GitLab.
+
+Ne modifie aucune ressource Temporal, Orq.ai, Vault, Kubernetes ou autre environnement distant.
+
+Présente tes conclusions en français, puis arrête-toi.
