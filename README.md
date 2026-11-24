@@ -1,22 +1,30 @@
-Merci, T1 est implémenté et les premiers résultats sont bons.
+Nous allons privilégier Temporal en préproduction plutôt que d’installer un serveur Temporal local.
 
-Avant de commencer T2, je souhaite une dernière qualification technique ciblée de T1, sans élargir son périmètre.
+Temporal est déjà déployé en préproduction et est utilisé par des workflows de traitement de documents provenant d’Engineering Companion. Nous voulons réutiliser cette infrastructure pour notre future orchestration du provisioning Orq.ai.
 
-Vérifie particulièrement :
+Je ne souhaite installer ni Temporal CLI ni serveur Temporal sur mon PC professionnel.
 
-1. Que le contrat OrqProjectsGateway et ses méthodes correspondent réellement au client et aux réponses API Orq disponibles dans notre environnement.
-2. Que la pagination, les champs d’identification, les descriptions, les états archivés et les codes HTTP sont interprétés correctement.
-3. Que nous ne pouvons pas réutiliser par erreur un projet Orq appartenant à un autre contexte simplement parce qu’il possède le même nom et la même description.
-4. Que les situations de timeout, concurrence, résultat incertain et compensation sont couvertes de manière sûre, en explicitant les limites impossibles à garantir côté client.
-5. Que T1 reste compatible avec le helper Orq existant et ne crée aucune régression.
-6. Que les changements nécessaires pour une future activité Temporal sont clairement identifiés, sans implémenter Temporal maintenant.
+Le SDK Python Temporal peut être utilisé dans le Dev Container, en respectant les mécanismes de dépendances déjà autorisés dans notre environnement.
 
-Utilise des mocks ou des tests de contrat locaux. N’effectue aucun appel distant modifiant des ressources Orq.
+Pour la suite de T2 :
 
-Exécute les validations possibles, puis actualise uniquement si nécessaire la documentation anglaise existante.
+1. Vérifie les possibilités de connexion du SDK Python à Temporal préprod depuis le Dev Container.
+2. Identifie l’endpoint SDK/gRPC, le namespace autorisé, les exigences TLS/authentification et les conventions de Task Queue. Ne confonds pas l’URL de l’interface Web avec l’adresse SDK.
+3. N’invente aucun paramètre manquant et ne contourne aucune restriction réseau ou de sécurité.
+4. Prévois une Task Queue dédiée à notre intégration, distincte des workflows de documents existants.
+5. Prépare une configuration optionnelle afin que le LMC continue de fonctionner normalement sans Temporal.
+6. Dans un premier temps, réalise uniquement des vérifications de connexion non destructives et des tests locaux sans activité métier distante.
+7. Si la connexion est validée et l’environnement de test autorisé, propose ensuite un premier workflow réel sans effet externe, exécuté par un Worker local dans le Dev Container, avant de passer aux appels Orq.
+8. Nous pourrons ultérieurement tester la création de véritables ressources Orq de test. Chaque ressource créée devra être identifiable, traçable et pouvoir être nettoyée manuellement. Ne lance pas encore ces créations sans définir précisément le test.
 
-Préserve intégralement MR 0, MR 1 et T1. Aucun commit, création de branche, push, merge, rebase ou Merge Request. Aucune modification de Docker, Kubernetes ou du runtime.
+Ne modifie pas les workflows ou Workers de documents déjà présents en préproduction.
 
-À la fin, donne-moi ton verdict sur la préparation de T1 pour une future intégration Temporal, ses limites connues et les éventuelles corrections strictement nécessaires.
+Préserve MR 0, MR 1 et T1. Toute nouvelle implémentation doit rester dans un espace local isolé.
 
-Ne commence pas T2 automatiquement.
+Aucun changement Docker Compose, Kubernetes, déploiement ou configuration officielle du LMC sans nécessité validée.
+
+Documentation technique en anglais, résultats de tests en français.
+
+Aucun commit, branche, push, merge, rebase ou création de Merge Request : je m’occupe seul de toutes les opérations Git et GitLab.
+
+Commence par la qualification de connexion et l’analyse de configuration. Arrête-toi en cas de paramètre indispensable manquant ou d’accès non autorisé.
