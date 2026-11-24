@@ -1,48 +1,77 @@
-La qualification réelle de la connexion Temporal préproduction est réussie :
+Les résultats de T2 sont très encourageants. Le Workflow no-op réel a été exécuté avec succès depuis le Dev Container.
 
-* SDK Python temporalio 1.18.2.
-* Namespace default.
-* Connexion SDK validée.
-* Santé du serveur validée.
-* Visibilité du namespace validée.
-* Aucun Workflow créé ou modifié.
+Avant de clôturer définitivement T2 et de commencer T3, je souhaite effectuer une dernière revue technique.
 
-Nous allons maintenant poursuivre T2.
+1. Validation finale de T2
 
-Commence par documenter précisément les résultats de cette qualification, notamment :
+Tu indiques 188 tests réussis et 33 échecs préexistants.
 
-* L’environnement depuis lequel le test a réellement été exécuté : DevEnv ou Dev Container.
-* Le mécanisme de connexion utilisé.
-* L’endpoint utilisé.
-* La configuration TLS et authentification effective.
-* Les commandes exécutées.
-* Les permissions effectivement vérifiées.
-* Les limites de cette validation.
+Lors des précédentes validations de MR 0 et MR 1, nous avions identifié 27 échecs préexistants.
 
-Ensuite :
+Explique précisément cette différence.
 
-1. Détermine comment nous pouvons reproduire cette connexion depuis le Dev Container sans installer kubectl, gcloud ou Temporal CLI dans celui-ci.
-2. Privilégie la réutilisation du tunnel Kubernetes établi manuellement depuis le DevEnv, uniquement via un mécanisme réseau autorisé et sans exposition du frontend Temporal à toutes les interfaces.
-3. Prépare les fondations Python de notre intégration Temporal dans un espace de travail local isolé.
-4. Analyse les conventions existantes du LMC pour les dépendances, la configuration, la journalisation et les tests.
-5. Prévois une configuration Temporal optionnelle afin que le LMC puisse continuer de fonctionner normalement lorsque Temporal est indisponible ou désactivé.
-6. Implémente les tests unitaires et les tests mockés nécessaires.
-7. Prépare un premier Workflow no-op, sans activité métier ni appel Orq.ai, avec un Worker local et une Task Queue dédiée.
-8. Vérifie que le namespace et la Task Queue sont autorisés avant toute exécution réelle du Workflow.
-9. Une fois ces conditions réunies, exécute le test no-op et documente précisément ses résultats.
+Compare la suite complète de T2 avec sa véritable base de référence, dans des conditions d’exécution identiques.
 
-Ne lance aucun Workflow sur une Task Queue existante.
+Identifie les tests en échec dans les deux environnements et démontre qu’aucune nouvelle régression n’a été introduite.
 
-Aucune modification de Kubernetes, Docker, des services existants ou des Workers Engineering Companion.
+Vérifie également :
 
-Aucune création de ressource Orq.ai.
+* Le caractère optionnel de la configuration Temporal.
+* Le comportement lorsque Temporal est désactivé ou indisponible.
+* La gestion des erreurs et des timeouts.
+* L’absence de dépendance involontaire envers MR 0 et MR 1.
+* La préservation intégrale de T1.
+* La conformité des modifications avec les conventions du LMC.
+* L’absence de configuration de test, d’adresse réseau locale ou de Task Queue codée en dur dans le code applicatif.
+* La reproductibilité du test réel.
+* L’arrêt correct du Worker local.
+* L’absence de modification des services existants.
+* La complétude de TEMPORAL_T2_FOUNDATION.md.
 
-Préserve intégralement MR 0, MR 1 et T1.
+Ne relance pas de Workflow distant sans nécessité justifiée.
 
-Aucune opération Git ou GitLab.
+2. Préparation de T3 — Orq Provisioning Workflow
 
-Documentation technique en anglais et résultats en français.
+Une fois T2 définitivement validé, prépare une proposition technique détaillée pour T3.
 
-Distingue les tests réellement exécutés des tests mockés et des validations restant à effectuer.
+L’objectif de T3 est d’intégrer la logique de réconciliation développée dans T1 à un Workflow Temporal reposant sur les fondations de T2.
 
-Poursuis de manière autonome dans ce périmètre et sollicite-moi uniquement lorsque mon intervention manuelle ou une autorisation supplémentaire est nécessaire.
+Analyse notamment :
+
+* Les responsabilités respectives du Workflow et des Activities.
+* La réutilisation du module de réconciliation T1 sans duplication de code.
+* Les contrats d’entrée et de sortie.
+* La déterminisation du Workflow et les contraintes de replay.
+* Les Workflow IDs.
+* Les politiques de retry et de timeout.
+* La gestion des erreurs permanentes et temporaires.
+* La gestion du statut UNKNOWN_OUTCOME.
+* Les risques de création de doublons Orq.ai.
+* Les risques liés à la concurrence.
+* L’annulation des Workflows.
+* Les dépendances envers la future persistance des mappings.
+* Les tests unitaires, mockés et d’intégration nécessaires.
+
+Attention : ne considère pas que Temporal garantit automatiquement l’idempotence des appels externes à Orq.ai.
+
+Préserve les garanties définies dans T1, notamment l’interdiction de relancer aveuglément une création après un résultat ambigu.
+
+Limite T3 à la réconciliation des projets Orq.ai. N’étends pas encore le périmètre aux Identities, budgets, agents, prompts ou autres ressources.
+
+Ne reprends pas les travaux Alembic et ne fusionne pas MR 0 ou MR 1 dans T3.
+
+Pour le moment, je souhaite uniquement la validation finale de T2 et la proposition d’implémentation de T3. Attends ma validation avant de développer T3.
+
+Contraintes
+
+* Travail exclusivement local et isolé.
+* Aucune modification Kubernetes ou Docker.
+* Aucun déploiement.
+* Aucun appel réel à Orq.ai.
+* Aucune création de ressources distantes.
+* Aucune opération Git ou GitLab.
+* Préserve MR 0, MR 1, T1 et T2.
+* Documentation technique en anglais.
+* Restitution et résultats en français.
+
+Distingue les faits vérifiés, les hypothèses et les décisions nécessitant une validation.
