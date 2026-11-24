@@ -1,50 +1,23 @@
-Je souhaite rendre les outils Kubernetes et Google Cloud disponibles dans mon Dev Container.
+Nous avons décidé de ne pas intégrer Kubernetes dans le Dev Container pour le moment.
 
-Tu es actuellement lancé directement depuis mon DevEnv, et non depuis le Dev Container. Cette session est exclusivement consacrée à l’analyse des outils déjà installés dans le DevEnv.
+Je dispose personnellement d’un accès Kubernetes fonctionnel depuis mon DevEnv et je réaliserai manuellement les commandes nécessaires.
 
-Mon Dev Container utilise Debian 13 Trixie et dispose déjà de Software Companion et Docker CLI.
+Nous reprenons donc exclusivement notre chantier T2 concernant Temporal.
 
-Les outils suivants sont actuellement installés et fonctionnels dans mon DevEnv :
+Lorsque tu as besoin d’informations Kubernetes :
 
-* Google Cloud SDK 548.0.0 : /usr/local/google-cloud-sdk
-* kubectl 1.30.5 : /usr/bin/kubectl
-* GKE Auth Plugin : ~/sens/gke-gcloud-auth-plugin
-* Script d’authentification S3NS : ~/init.sh
+* Fournis-moi les commandes exactes à exécuter.
+* Privilégie les commandes en lecture seule et les sorties ciblées.
+* Indique-moi ce que tu cherches à vérifier.
+* Évite toute commande susceptible d’afficher des secrets.
+* Regroupe autant que possible les commandes afin de limiter les allers-retours.
 
-Je souhaite déterminer si ces installations existantes peuvent être réutilisées proprement et durablement dans mon Dev Container, plutôt que de rechercher de nouveaux packages dans Artifactory.
+Je te transmettrai les résultats pour que tu puisses poursuivre tes investigations et tes tests.
 
-Travail demandé :
+Exploite les informations Kubernetes déjà communiquées concernant le serveur Temporal et le Worker Engineering Companion existant.
 
-1. Identifie le système d’exploitation et l’architecture du DevEnv.
-2. Analyse les installations existantes de gcloud, kubectl et gke-gcloud-auth-plugin.
-3. Identifie leurs versions, leurs dépendances et leur mode d’installation.
-4. Recherche les éventuelles archives d’installation originales et leur provenance dans les repositories internes autorisés.
-5. Vérifie leur compatibilité potentielle avec Debian 13 Trixie.
-6. Analyse le script init.sh et les certificats nécessaires à l’authentification S3NS, sans exposer de données sensibles.
-7. Identifie le mécanisme actuellement utilisé pour configurer kubectl et sélectionner le cluster préproduction.
-8. Détermine si les outils peuvent être réutilisés via des montages en lecture seule ou une autre méthode autorisée et reproductible.
-9. Vérifie si une authentification interactive indépendante depuis le Dev Container serait possible.
-10. Identifie les contraintes réseau, proxy, TLS et les dépendances supplémentaires.
-11. Analyse les permissions Kubernetes actuelles et les possibilités de disposer d’une identité dédiée en lecture seule.
-12. Prépare un rapport technique suffisamment détaillé pour que je puisse le transmettre à une autre session Software Companion lancée depuis le Dev Container.
+Continue d’avancer de manière autonome sur tout ce qui est réalisable depuis le Dev Container.
 
-Contraintes impératives :
+Toutes nos contraintes précédentes restent applicables : aucune modification de l’infrastructure existante, aucun appel métier à Orq.ai, préservation de MR 0, MR 1 et T1, aucune opération Git ou GitLab.
 
-* Analyse exclusivement en lecture seule.
-* Aucune installation ou mise à jour.
-* Aucune modification du DevEnv.
-* Aucune modification du Dev Container.
-* Aucune modification ou création de conteneur Docker.
-* Aucune modification de ressource Kubernetes.
-* Aucune copie de fichiers pour le moment.
-* Aucun transfert de credentials.
-* Aucune exposition de secrets ou de tokens.
-* Aucun contournement des restrictions de sécurité.
-* Aucune opération Git ou GitLab.
-* Ne touche à aucun projet applicatif.
-
-Sois autonome dans tes recherches et exploite les informations accessibles depuis le DevEnv.
-
-Présente-moi les résultats réellement vérifiés, les hypothèses, les blocages éventuels et ta solution recommandée.
-
-Documentation technique en anglais, restitution en français.
+Indique-moi maintenant les prochaines commandes Kubernetes dont tu as besoin pour poursuivre la qualification de Temporal préproduction.
