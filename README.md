@@ -1,100 +1,130 @@
-Je valide la sauvegarde et l’isolation de MR 1.
+Je valide ta proposition d’intégration locale de MR 0, MR 1, T1, T2 et T3.
 
-Nous disposons désormais de deux chaînes de développement préservées :
+Nous allons avancer sans attendre la finalisation du chantier officiel Alembic, en considérant notre chaîne de migrations locale comme provisoire et strictement non déployable.
 
-* MR 0 + MR 1 dans lcc-mr1-orq-project-mapping.
-* T1 + T2 + T3 dans lcc-t3-orq-project-workflow.
+1. Création de l’espace intégré
 
-Je souhaite maintenant étudier la possibilité de réunir ces deux chaînes dans un nouvel espace d’intégration local afin de débloquer notre dépendance envers Alembic.
+Tu peux maintenant créer :
 
-Notre objectif est de continuer le développement du véritable LMC en local sans attendre la finalisation du chantier officiel Alembic, si cela est techniquement possible.
+/workspace/LEA_Workspace/lcc-local-integration
 
-1. Analyse de faisabilité
+Applique la méthode minimale proposée :
 
-* Analyse les différences entre les deux chaînes et leurs bases de référence.
-* Identifie les éventuels conflits de code, de dépendances, de modèles SQLAlchemy et de migrations.
-* Vérifie si les migrations Alembic 0001, 0002 et 0003 peuvent être conservées dans un environnement réunissant MR 0, MR 1, T1, T2 et T3.
-* Identifie les adaptations minimales nécessaires pour réunir ces travaux.
-* Détermine si nous pouvons utiliser une base PostgreSQL locale neuve et isolée pour qualifier l’ensemble.
-* Identifie la persistance supplémentaire nécessaire pour les opérations de provisioning, les mappings et la gestion durable de UNKNOWN_OUTCOME.
-* Analyse les risques de divergence avec le futur chantier officiel Alembic.
-* Propose la méthode d’intégration la plus simple, sans duplication de code ni système de migrations parallèle.
+* Copier l’état complet de T3.
+* Superposer uniquement les 11 fichiers finaux correspondant à MR 0 + MR 1.
+* Conserver une seule chaîne Alembic.
+* Vérifier l’intégrité de l’ensemble des modifications.
+* Ne copier aucune métadonnée Git, aucun credential ni fichier sensible.
 
-Si cette approche est viable, propose la création ultérieure d’un nouvel espace isolé nommé lcc-local-integration.
+Préserve intégralement tous les espaces de travail existants, notamment le dossier lcc original.
 
-2. Préservation du fonctionnement et du démarrage actuel du LMC
+2. Décisions techniques
 
-Il s’agit d’une contrainte fondamentale pour l’ensemble de notre intégration.
+Concernant les IDs Orq, je privilégie une longueur maximale de 256 caractères afin d’harmoniser la future persistance avec les contrats T3.
 
-Le LMC doit continuer à être lancé exactement de la même manière qu’actuellement. Nos développements doivent s’intégrer dans son architecture et ses mécanismes existants, sans imposer une nouvelle procédure de démarrage.
+Vérifie néanmoins le contrat réel du SDK Orq et documente cette décision. Aucune troncature silencieuse ne doit être possible.
 
-Commence par analyser précisément :
+Ne modifie pas encore la migration 0003 pour cette adaptation. Elle devra être traitée dans une future micro-MR dédiée.
 
-* La procédure actuelle de lancement du LMC.
-* Les commandes et scripts existants.
-* Les configurations Docker et Docker Compose.
-* L’initialisation du backend, du frontend et de PostgreSQL.
-* Le mécanisme actuel d’exécution des migrations Alembic.
-* La gestion des variables d’environnement et des dépendances.
-* Le cycle de démarrage et d’arrêt des différents composants.
+Concernant le Worker Temporal, je valide le principe d’un processus séparé et optionnel pour les qualifications locales :
 
-Notre intégration ne doit pas :
+* Dépendances Temporal isolées.
+* Aucun couplage au lifespan FastAPI.
+* Aucun changement des lancements standards.
+* Aucun changement Docker Compose sans validation préalable.
 
-* Remplacer la procédure actuelle de démarrage.
-* Imposer de nouvelles commandes obligatoires pour lancer normalement le LMC.
-* Introduire un Docker Compose alternatif comme solution définitive.
-* Modifier inutilement les scripts de lancement existants.
-* Imposer une nouvelle architecture de développement local.
-* Introduire une étape manuelle supplémentaire pour appliquer les migrations dans le fonctionnement standard, si les mécanismes existants permettent de l’éviter.
+À terme, lorsque le provisioning est activé, le cycle de vie du Worker devra être correctement intégré aux mécanismes existants, sans imposer une nouvelle procédure standard de lancement du LMC.
 
-Les nouveaux composants nécessaires au provisioning, notamment le Worker Temporal, devront s’intégrer proprement au cycle de vie applicatif ou aux mécanismes de gestion des services existants.
+3. Qualification de l’état intégré
 
-Si un composant supplémentaire nécessite réellement une évolution du mécanisme de démarrage, justifie précisément cette nécessité, présente les alternatives et attends ma validation.
+Avant toute nouvelle implémentation, qualifie intégralement l’état cumulé MR 0 + MR 1 + T1 + T2 + T3.
 
-Une procédure spécifique peut être utilisée pour des tests isolés, mais elle ne doit pas devenir la nouvelle procédure standard de lancement du LMC.
+Vérifie notamment :
 
-Le LMC doit continuer à démarrer et à fonctionner normalement lorsque l’intégration Temporal et Orq.ai est désactivée ou indisponible.
+* Chaîne Alembic 0001 → 0002 → 0003 avec un head unique.
+* Cohérence des migrations et des modèles SQLAlchemy.
+* PostgreSQL 16 neuf et isolé.
+* Présence des 31 tables et 14 triggers attendus.
+* Tests ciblés de chaque chantier.
+* Suite complète de non-régression.
+* Comparaison des node IDs et des traces des échecs préexistants.
+* Compilation et vérification des dépendances.
 
-3. Plan de qualification
+Les résultats attendus avant ajout de nouveaux tests sont :
 
-Prépare un plan de qualification comprenant :
+* 290 cas JUnit.
+* 263 tests réussis.
+* 27 échecs préexistants.
+* 15 sous-tests réussis.
 
-* Validation de la chaîne Alembic et de son head unique.
-* Validation du schéma PostgreSQL et des modèles ORM.
-* Tests de non-régression de MR 0, MR 1, T1, T2 et T3.
-* Comparaison des échecs avec les références appropriées.
-* Démarrage réel du backend et du frontend LMC.
-* Vérification que le LMC démarre en utilisant sa procédure habituelle, sans commande supplémentaire obligatoire.
-* Vérification des fonctionnalités existantes depuis l’interface locale.
-* Vérification du comportement lorsque Temporal est désactivé ou indisponible.
-* Vérification de l’absence de régression dans les mécanismes existants de démarrage, de configuration et d’arrêt.
+Vérifie ces résultats réellement et explique toute différence éventuelle.
 
-Ne contourne pas Alembic avec du SQL manuel ou create_all().
+4. Démarrage réel du LMC
 
-4. Objectif fonctionnel final
+Je souhaite que tu qualifies également le véritable LMC depuis ce nouvel espace intégré.
 
-Notre objectif reste d’obtenir une parité fonctionnelle complète avec le Mock LMC depuis l’interface du véritable LMC lancé localement.
+Utilise strictement sa procédure habituelle :
 
-Nous devons pouvoir créer un projet, déclencher son provisioning et retrouver toutes les ressources correspondantes dans Orq.ai.
+* Scripts 01, 02 et 03.
+* Configurations de lancement VS Code existantes.
+* Mécanismes existants d’initialisation et de migration.
 
-Aucun déploiement de notre nouvelle version du LMC en préproduction ne sera envisagé avant cette qualification fonctionnelle complète en local.
+Ne modifie pas cette procédure.
 
-5. Contraintes impératives
+Attention : avant d’exécuter un script de reset ou de provisioning des bases, vérifie impérativement les bases, volumes, conteneurs, réseaux et services ciblés.
 
-* Pour le moment, réalise uniquement l’analyse de faisabilité et présente-moi ton plan avant l’implémentation.
-* Préserve intégralement tous les espaces de travail existants.
-* Ne modifie pas le dossier lcc original.
-* Ne modifie pas la procédure actuelle de démarrage du LMC.
-* Ne crée pas de système de migrations concurrent.
+Aucun script ne doit réinitialiser ou modifier une base existante, ni affecter une autre instance du LMC.
+
+Si une nouvelle ressource Docker locale et isolée est nécessaire, présente-moi précisément ce besoin avant sa création. Ne touche à aucun conteneur existant.
+
+Vérifie réellement :
+
+* Le démarrage du backend.
+* Le démarrage du frontend.
+* L’accessibilité de l’interface.
+* Le fonctionnement des fonctionnalités existantes.
+* Le comportement lorsque Temporal est désactivé.
+* Le comportement lorsque Temporal est indisponible.
+* L’arrêt correct de l’application.
+
+Lorsque c’est possible, fournis-moi l’URL locale afin que je puisse également vérifier personnellement l’interface.
+
+5. Préparation de la suite
+
+Une fois l’état intégré qualifié, propose les prochaines micro-MR nécessaires pour :
+
+* Étendre le mapping Orq.
+* Persister les opérations de provisioning.
+* Garantir la persistance de UNKNOWN_OUTCOME et des tentatives de mutation.
+* Gérer les générations et les opérations CAS.
+* Intégrer le Worker métier.
+* Intégrer l’API de provisioning.
+* Intégrer le frontend.
+
+Justifie la nécessité de l’outbox transactionnel et vérifie si les mécanismes existants du LMC peuvent être réutilisés.
+
+Les éventuelles futures migrations 0004 et 0005 devront appartenir à une chaîne linéaire unique et rester strictement locales jusqu’à leur adaptation au futur head Alembic officiel.
+
+Ne commence pas encore ces nouvelles implémentations. Nous devons d’abord disposer d’une base intégrée réellement fonctionnelle.
+
+6. Contraintes impératives
+
 * Aucune opération Git ou GitLab.
-* Aucune modification Kubernetes.
-* Aucune modification des conteneurs Docker existants.
-* Aucune modification Docker Compose sans validation préalable.
-* Aucune modification des bases de données existantes.
-* Aucun appel distant à Orq.ai.
+* Aucun changement Kubernetes.
 * Aucun déploiement.
-* Documentation technique en anglais et restitution en français.
+* Aucune modification des conteneurs ou services Docker existants.
+* Aucune modification des bases existantes.
+* Aucune modification de la procédure standard de lancement du LMC.
+* Aucun appel réel à Orq.ai.
+* Aucun nouveau Workflow Temporal distant.
+* Aucun contournement d’Alembic.
+* Préservation intégrale de MR 0, MR 1, T1, T2 et T3.
+* Documentation technique en anglais, restitution en français.
 
-Indique-moi clairement si Alembic constitue encore un véritable blocage pour notre développement local et si nous pouvons poursuivre en réutilisant nos travaux précédents, tout en conservant strictement le fonctionnement et la procédure de lancement actuels du LMC.
+Mets à jour LMC_WORKSPACE_INDEX.md et LMC_LOCAL_INTEGRATION_FEASIBILITY.md.
 
-Privilégie systématiquement la simplicité, la réutilisation de l’existant et des modifications minimales.
+À la fin, présente-moi les résultats réellement obtenus, les éventuels problèmes rencontrés et la prochaine micro-MR recommandée.
+
+Notre objectif reste la parité fonctionnelle complète avec le Mock LMC depuis l’interface du véritable LMC local, avant tout déploiement en préproduction.
+
+Tu peux maintenant procéder à la création et à la qualification de l’espace intégré dans le périmètre autorisé.
