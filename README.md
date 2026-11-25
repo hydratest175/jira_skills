@@ -1,184 +1,240 @@
-Je valide l’architecture de convergence proposée avec la réutilisation directe de ProjectOrqSaga.
+Je valide C0 sur son périmètre de qualification locale.
 
-Nous retenons les décisions suivantes :
+Nous disposons désormais d’une nouvelle référence :
 
-* saga_project_orq devient l’unique table d’opérations de provisioning Orq.
-* orq_project_mappings conserve le mapping durable et l’identité distante vérifiée.
-* orq_project_temporal_start_outbox conserve l’état de livraison Temporal.
-* orq_project_provisioning_operations ne sera pas créée dans la nouvelle base de convergence.
-* Aucune double écriture.
-* Réutilisation maximale de notre Store PostgreSQL, de nos contrats V2, de nos Activities, de notre Workflow et de nos tests existants.
-* Réutilisation des mécanismes Repair, des endpoints et des permissions existants.
-* Conservation de toutes nos protections contre les mutations concurrentes et ambiguës.
+* 147 cas JUnit.
+* 120 tests réussis.
+* 27 échecs historiques identiques.
+* Aucune nouvelle régression.
+* PostgreSQL 18.4.
+* 30 tables applicatives.
+* 13 triggers.
+* 2 fonctions.
+* 75 index.
+* 329 contraintes applicatives.
+* Head Alembic unique : 0002_baseline_reference_data.
+* Équivalence du catalogue applicatif produit par Alembic et par le reset SQL sur une base neuve.
 
-Nous pouvons maintenant poursuivre et terminer C0.
+Nous pouvons maintenant commencer C1 — Final Orq Project Mapping.
 
-1. Espace de qualification
+1. Espace de travail
 
-Utilise comme nouvelle base de référence :
+Crée un nouvel espace local isolé :
 
-/workspace/LEA_Workspace/lcc_last_version/lcc
+/workspace/LEA_Workspace/lcc-c1-orq-project-mapping
 
-Crée, si ce n’est pas déjà fait :
+Utilise comme base cumulative :
 
 /workspace/LEA_Workspace/lcc-c0-baseline-qualification
 
-Ne reporte encore aucun développement Orq dans cet espace.
+Notre référence LMC originale reste :
 
-Préserve intégralement tous les espaces de travail existants.
+/workspace/LEA_Workspace/lcc_last_version/lcc
 
-Ne copie aucun credential, fichier .env, environnement virtuel, cache inutile ou métadonnée Git.
+Préserve intégralement tous les espaces précédents.
 
-2. Qualification des tests existants
+Ne copie aucune métadonnée Git, aucun credential, fichier .env, environnement virtuel ou cache inutile.
 
-Tu as identifié :
+2. Réutilisation de MR1 et MR4
 
-* 30 tables SQL.
-* 30 tables ORM.
-* 13 triggers.
-* 2 fonctions.
-* 22 inserts de référence.
-* 9 tests ciblés réussis.
-* 3 échecs liés à des assertions apparemment obsolètes.
+Notre objectif est de porter le travail déjà réalisé, et non de le réimplémenter.
 
-Vérifie précisément que les différences constatées correspondent à des évolutions légitimes du LMC.
+Relis notamment :
 
-Ne modifie pas simplement les valeurs attendues des tests pour les faire passer.
+* lcc-mr1-orq-project-mapping
+* lcc-mr4-orq-project-mapping-state
+* lcc-mr7-postgresql-state-store
+* C0_BASELINE_QUALIFICATION.md
+* LMC_SAGA_REPAIR_CONVERGENCE_ANALYSIS.md
+* LOCAL_LMC_PARITY_ROADMAP.md
+* LMC_WORKSPACE_INDEX.md
 
-Identifie les nouvelles tables et données de référence, puis vérifie leur cohérence avec les modèles ORM et les migrations.
+Réutilise directement les modèles, contraintes, migrations, tests et décisions techniques précédemment qualifiés lorsque cela est possible.
 
-Exécute la suite complète des tests disponibles afin d’établir une nouvelle référence de non-régression.
+Adapte uniquement les éléments rendus nécessaires par la nouvelle version du LMC et PostgreSQL 18.4.
 
-Conserve les node IDs, traces normalisées et signatures des échecs préexistants.
+Identifie explicitement les portions de code reprises sans modification et celles nécessitant une adaptation.
 
-Présente séparément les éventuelles corrections minimales nécessaires.
+3. Migration finale du mapping
 
-3. Qualification réelle PostgreSQL et Alembic
+Consolide MR1 et MR4 dans une seule migration Alembic additive située après le head officiel actuel.
 
-Utilise PostgreSQL 18.4 neuf et strictement isolé, conformément à la nouvelle version du LMC et aux sources d’images autorisées dans notre environnement.
+Ne reporte pas successivement nos anciennes migrations provisoires 0003 et 0004.
 
-Vérifie réellement :
+La nouvelle migration doit directement créer le schéma final de orq_project_mappings avec :
 
-* La chaîne Alembic officielle.
-* Le head unique.
-* L’exécution de alembic upgrade head depuis une base vide.
-* La cohérence du schéma obtenu avec les modèles ORM.
-* Les tables, triggers, fonctions, contraintes et données de référence.
-* La réapplication de upgrade head.
-* Le comportement du mécanisme actuel d’initialisation des bases.
-* Les éventuelles divergences entre la baseline SQL et les migrations Alembic.
+* La référence interne au projet LMC.
+* L’identifiant Orq unique avec une longueur maximale de 256 caractères.
+* La clé projet Orq vérifiée.
+* La version de configuration désirée.
+* Le hash de configuration désirée.
+* La génération nécessaire aux futures protections CAS.
+* Les timestamps.
+* Les contraintes et le trigger précédemment qualifiés.
 
-Si possible, reconstruis des états historiques sur des bases temporaires isolées à partir des versions précédentes disponibles localement, afin de qualifier les chemins d’upgrade reproductibles.
+Reprends les types, nullabilités, contraintes et valeurs initiales de notre schéma final MR4, sauf incompatibilité justifiée avec la nouvelle base.
 
-Ne considère pas une base synthétique comme une preuve de compatibilité avec toutes les bases historiques réelles.
+Vérifie notamment les conventions SQLAlchemy, les clés étrangères, les types PostgreSQL et les mécanismes de timestamps existants.
 
-N’accède à aucune base existante pour effectuer cette qualification.
+La limite de 256 caractères reste une borne défensive interne et non une limitation officielle Orq.
 
-Si l’inventaire d’une véritable base historique devient indispensable, explique précisément pourquoi et présente-moi la procédure de lecture seule nécessaire avant toute intervention.
+Aucune troncature silencieuse ne doit être possible.
 
-4. Limitation du chantier Alembic
+Ne modifie aucune migration officielle existante.
+
+4. Compatibilité avec la future Saga Orq
+
+Notre architecture de convergence est désormais définie :
+
+* saga_project_orq sera l’unique table d’opérations de provisioning Orq.
+* orq_project_mappings conserve l’identité distante vérifiée.
+* orq_project_temporal_start_outbox conserve l’état de livraison Temporal.
+* orq_project_provisioning_operations ne sera pas recréée.
+
+Vérifie que le mapping introduit dans C1 reste compatible avec le futur enrichissement de ProjectOrqSaga et le portage du Store PostgreSQL MR7.
+
+Ne modifie cependant pas ProjectOrqSaga dans C1.
+
+Cette évolution appartient exclusivement à C2.
+
+5. Pont local entre reset SQL et Alembic
+
+Tu as identifié la nécessité du pont suivant après le reset SQL :
+
+alembic stamp 0002_baseline_reference_data
+
+alembic upgrade head
+
+Je valide le principe technique de ce pont pour une base locale fraîchement réinitialisée et dont la conformité avec 0002 a été vérifiée.
+
+Cependant, je souhaite séparer cette adaptation de la procédure interne de migration du développement du mapping Orq.
+
+Pour C1 :
+
+* Ne modifie aucun script standard.
+* Qualifie la migration directement sur PostgreSQL 18.4 isolé.
+* Tu peux tester le pont manuellement sur une base temporaire fraîchement initialisée par le reset SQL.
+* Vérifie que le schéma correspond réellement à 0002 avant tout stamp.
+* Ne réalise jamais de stamp automatique sur une base historique ou déjà utilisée.
+* N’utilise pas stamp pour contourner une migration échouée ou masquer une divergence de schéma.
+
+Prépare séparément le diff minimal permettant d’intégrer ultérieurement ce pont dans le mécanisme standard d’initialisation locale.
+
+Présente ce diff pour validation, sans l’appliquer aux scripts existants.
+
+La procédure utilisateur de lancement du LMC doit impérativement rester inchangée.
 
 Nous ne souhaitons pas reprendre intégralement le chantier officiel Alembic.
 
-Distingue clairement :
+6. Qualification réelle PostgreSQL 18.4
 
-* Les problèmes bloquant réellement notre développement local.
-* Les problèmes non bloquants hérités du LMC.
-* Les problèmes concernant uniquement les migrations de bases historiques.
-* Les problèmes concernant uniquement le futur déploiement Kubernetes.
+Réutilise les scénarios de tests MR1 et MR4.
 
-Notre objectif est de poursuivre rapidement notre développement local.
+Vérifie notamment :
 
-Si une correction est indispensable, présente le diff minimal proposé et sa justification avant de modifier le schéma ou les migrations.
+* La migration depuis une base vide.
+* La migration depuis une base 0002 contenant des données représentatives.
+* La préservation des données LMC existantes.
+* Le head Alembic unique.
+* La cohérence ORM/SQL.
+* L’unicité du mapping.
+* Les contraintes de validité.
+* Les identifiants de 256 caractères.
+* Le rejet des identifiants trop longs.
+* Le comportement des timestamps et du trigger.
+* Les valeurs initiales de génération, version et hash.
+* La réapplication de upgrade head.
+* Le comportement du downgrade.
+* Le refus d’un downgrade susceptible de supprimer silencieusement des mappings existants.
 
-Ne crée aucun système de migrations concurrent.
+Teste également la compatibilité avec les attentes du futur Store PostgreSQL MR7.
 
-5. Préparation de C1 et C2
+Ne présente pas la présence d’un champ generation comme une garantie CAS effective.
 
-Prépare le plan précis des deux prochaines micro-MR, sans commencer leur implémentation.
+Utilise exclusivement des bases et ressources Docker temporaires strictement isolées.
 
-C1 devra consolider MR1 et MR4 dans le mapping durable final.
+7. Non-régression
 
-C2 devra enrichir directement saga_project_orq en réutilisant le schéma final de MR5 et MR7, puis créer l’outbox associée.
+Notre nouvelle référence est celle de C0 :
 
-Pour C2, conserve les champs et conventions Saga existants lorsque leurs responsabilités sont compatibles avec notre architecture.
+* 120 tests réussis.
+* 27 échecs historiques.
+* 147 cas JUnit.
 
-Prévois notamment :
+Exécute les tests ciblés et la suite complète.
 
-* operation_ref comme identifiant unique d’opération.
-* Plusieurs opérations historiques par projet.
-* Générations et snapshots immuables.
-* Réservation durable avant mutation.
-* Résultats candidats et vérifiés.
-* Références de support.
-* Statuts propres à la Saga Orq.
-* Conservation de UNKNOWN_OUTCOME.
-* Association fiable avec l’outbox.
+Compare les node IDs, traces normalisées et signatures des échecs avec C0.
 
-Ne modifie pas l’enum partagé par les autres Sagas.
+Distingue les tests directement réutilisés de MR1/MR4 des éventuels nouveaux tests nécessaires à la convergence.
 
-Ne supprime pas les opérations Orq après réussite.
+Vérifie la compilation et pip check.
 
-Ne crée aucune table intermédiaire inutile.
+Ne cherche pas à retrouver artificiellement les anciens nombres de tests MR7, puisque le portage de nos composants sera progressif.
 
-Concernant les éventuelles données historiques présentes dans saga_project_orq, privilégie une stratégie fail-fast tant qu’aucune migration sûre de ces données n’a été définie et validée.
+8. Limitation du périmètre
 
-N’invente aucun ID, clé, mapping ou hash Orq.
+C1 doit rester strictement consacrée au mapping durable Orq.
 
-Aucune ancienne opération ambiguë ne doit devenir automatiquement dispatchable.
+Ne commence pas :
 
-6. Préparation du portage
-
-Identifie précisément les fichiers de MR0 à MR7 qui pourront être directement réutilisés.
-
-Privilégie la réutilisation de notre implémentation et de nos tests plutôt qu’une réécriture.
-
-Découpe le futur portage C3 en micro-MR distinctes si nécessaire, notamment pour :
-
-* T1 et la réconciliation.
-* T2 et les fondations Temporal.
-* Les contrats et le Workflow V2.
+* L’enrichissement de ProjectOrqSaga.
+* La création de l’outbox.
+* Le portage de T1 ou T2.
+* Le portage des contrats ou Workflows.
 * Le Store PostgreSQL.
-* Les Activities V2.
+* Les Activities.
+* Le Worker.
+* Le dispatcher.
+* L’API.
+* Le frontend.
+* Le Repair.
 
-Chaque étape devra être réellement qualifiée avant de poursuivre.
+Ces développements seront traités dans les micro-MR suivantes.
 
-Conserve également les décisions fonctionnelles encore ouvertes concernant la suppression des projets, le retry manuel à configuration identique et les modifications concurrentes du projet.
+9. Contraintes impératives
 
-7. Contraintes impératives
-
-* Aucun développement C1 ou ultérieur pour le moment.
+* Micro-MR minimale et facilement explicable.
+* Réutilisation maximale du travail existant.
 * Aucune opération Git ou GitLab.
 * Aucun changement Kubernetes.
 * Aucun déploiement.
-* Aucun appel distant à Orq.ai.
-* Aucun nouveau Workflow Temporal distant.
+* Aucun appel réel à Orq.ai.
+* Aucun Workflow Temporal distant.
 * Aucune modification des conteneurs, volumes, réseaux ou bases existants.
-* Seules les ressources Docker temporaires strictement isolées nécessaires à la qualification sont autorisées.
 * Aucune modification du Docker Compose original.
-* Aucune modification de la procédure standard de lancement du LMC.
+* Aucune modification des scripts 01, 02 et 03.
+* Aucune modification des configurations de lancement VS Code.
+* Préservation intégrale des espaces précédents.
 * Temporal et Orq.ai doivent rester optionnels.
-* Préservation intégrale de tous les espaces précédents.
 
-8. Documentation et restitution
+La nouvelle migration reste locale et non déployable tant que les chemins d’upgrade historiques et le chantier officiel Alembic n’ont pas été validés.
 
-Complète la documentation de convergence et crée la documentation technique dédiée à C0 en anglais.
+10. Documentation et restitution
+
+Crée une documentation technique dédiée à C1 en anglais.
 
 Mets à jour LMC_WORKSPACE_INDEX.md et la roadmap de convergence.
 
-Présente-moi en français :
+Pour chaque fichier modifié, explique :
 
+* Son rôle.
+* Le comportement avant et après.
+* Le code directement réutilisé.
+* Les adaptations nécessaires.
+* La justification technique.
+* Les alternatives éventuelles.
+
+À la fin, présente-moi en français :
+
+* Les fichiers créés et modifiés.
+* Le schéma final du mapping.
+* Le travail réutilisé de MR1 et MR4.
 * Les résultats réels des tests.
-* La nouvelle référence de non-régression.
-* Les résultats PostgreSQL et Alembic.
-* Les problèmes hérités.
-* Les corrections minimales nécessaires.
-* Les éventuels blocages.
-* Le plan précis de C1 et C2.
-* Les composants existants qui pourront être directement réutilisés.
+* Les garanties effectivement validées.
+* Le diff proposé pour le pont local Alembic, sans l’appliquer.
+* Les limites restantes.
+* La prochaine micro-MR recommandée.
 
-Indique explicitement si nous pouvons commencer C1 sans attendre la finalisation du chantier officiel Alembic.
+Notre objectif reste la parité fonctionnelle complète avec le Mock LMC depuis l’interface du véritable LMC local, incluant les mécanismes existants de support et de réparation, avant tout déploiement en préproduction.
 
-Notre objectif reste la parité fonctionnelle complète avec le Mock LMC depuis l’interface du véritable LMC lancé localement, incluant le support et le Repair, avant tout déploiement en préproduction.
-
-Tu peux terminer C0 dans ce périmètre. Ne commence pas C1 sans mon accord.
+Tu peux commencer C1 dans ce périmètre. Ne commence pas C2 sans mon accord.
