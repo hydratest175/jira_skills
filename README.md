@@ -1,166 +1,145 @@
-Je valide MR4 sur son périmètre de qualification.
+Je valide MR5 sur son périmètre de qualification.
 
 Les résultats correspondent à nos attentes :
 
-* 268 tests réussis.
+* 276 tests réussis.
 * 27 échecs préexistants identiques.
 * 15 sous-tests réussis.
-* 5 nouveaux tests réussis.
-* Migration 0004 validée sur PostgreSQL 16.
-* Conservation des données existantes.
-* Absence de nouvelle régression.
+* 8 nouveaux tests réussis.
+* 33 tables et 18 triggers.
+* Migration 0005 validée réellement sur PostgreSQL 16.
+* Aucune nouvelle régression.
 * Préservation du LMC original.
 
-Nous pouvons maintenant commencer MR5 — Provisioning Operations & Outbox.
+Nous pouvons maintenant commencer la prochaine micro-MR : MR6 — Provisioning Contracts & Workflow Identity.
 
 1. Espace de travail
 
 Crée un nouvel espace local isolé :
 
-/workspace/LEA_Workspace/lcc-mr5-provisioning-operations-outbox
+/workspace/LEA_Workspace/lcc-mr6-provisioning-contracts
 
-Utilise MR4 comme base cumulative.
+Utilise MR5 comme base cumulative.
 
-Préserve intégralement tous les espaces de travail précédents.
+Préserve intégralement tous les espaces précédents.
 
 Ne copie aucune métadonnée Git, aucun credential, fichier .env, environnement virtuel ou cache inutile.
 
-2. Objectif de cette micro-MR
+2. Objectif
 
-Préparer la persistance durable des opérations de provisioning et des demandes de démarrage Temporal.
+Aligne les contrats de provisioning développés dans T3 avec les mécanismes de persistance introduits dans MR4 et MR5.
 
-Avant l’implémentation, relis :
+Relis les contrats existants, les modèles ORM, les migrations et la roadmap avant toute modification.
 
-* Les contrats T1, T2 et T3.
-* Le schéma de mapping introduit dans MR1 et étendu dans MR4.
-* Les mécanismes existants de persistance, transactions, audit et gestion des opérations du LMC.
-* LOCAL_LMC_PARITY_ROADMAP.md.
-* Le comportement correspondant du Mock LMC.
+Privilégie une évolution minimale des contrats existants plutôt que la création de nouvelles abstractions.
 
-Privilégie les conventions et les abstractions existantes.
+Le périmètre doit rester limité aux contrats, à l’identification des opérations et à leurs adaptations nécessaires dans le Workflow.
 
-Justifie le schéma retenu et vérifie qu’il constitue la solution minimale répondant à nos besoins.
+3. Versionnement des contrats
 
-Si le périmètre opérations/outbox est trop important pour une seule micro-MR, propose sa séparation avant de commencer.
+Fais évoluer les contrats nécessaires pour transporter :
 
-3. Persistance des opérations
+* operation_ref.
+* project_ref.
+* generation.
+* La clé Orq vérifiée.
+* Les références de configuration désirée strictement nécessaires.
+* Le mode PLAN/APPLY, lorsqu’il est pertinent.
 
-Prévois les informations strictement nécessaires pour représenter durablement :
+Distingue clairement :
 
-* L’identifiant de l’opération.
-* Le projet LMC concerné.
-* La version et le hash de la configuration désirée, si nécessaires.
-* Le statut de l’opération.
-* La génération utilisée pour les futures protections CAS.
-* L’identifiant du Workflow Temporal.
-* Le résultat de la réconciliation.
-* L’indicateur de tentative de mutation.
-* Le statut UNKNOWN_OUTCOME.
-* Une référence de diagnostic non sensible.
-* Les timestamps nécessaires.
+* L’identifiant du projet LMC.
+* La clé du projet LMC.
+* L’identifiant du projet Orq.
+* La clé du projet Orq.
+* Les credentials et clés API, qui ne doivent jamais être transportés dans les contrats Temporal.
 
-Aligne les champs et les statuts sur les contrats existants de T3. N’invente pas une seconde machine à états incompatible.
+Vérifie la cohérence des types, contraintes, longueurs et valeurs avec le schéma PostgreSQL de MR4/MR5.
 
-Distingue explicitement une mutation non tentée d’une mutation dont l’état est inconnu.
+Définis explicitement le comportement des anciennes versions de contrats. Ne modifie pas silencieusement un contrat versionné incompatible.
 
-Un résultat inconnu ne doit jamais être transformé silencieusement en autorisation de relancer une création Orq.
+4. Workflow ID
 
-Vérifie également que la suppression ou la modification d’un projet LMC ne puisse pas effacer silencieusement les informations nécessaires à la résolution d’un UNKNOWN_OUTCOME.
+Définis une stratégie déterministe de Workflow ID tenant compte de l’identité de l’opération et de sa génération.
 
-4. Outbox transactionnel
+Vérifie les scénarios suivants :
 
-Prépare le schéma minimal permettant d’enregistrer durablement une demande de démarrage Temporal.
+* Même opération soumise plusieurs fois.
+* Deux générations différentes pour un même projet.
+* PLAN puis APPLY.
+* Reprovisioning d’un projet existant.
+* Tentative obsolète.
+* Perte de l’accusé de réception du démarrage Temporal.
+* Nouvelle demande après UNKNOWN_OUTCOME.
 
-L’objectif futur est de pouvoir enregistrer l’opération et sa demande de dispatch dans une même transaction PostgreSQL.
+Le Workflow ID doit être stable pour une même opération et ne doit jamais permettre de contourner les protections durables associées à une mutation ambiguë.
 
-Prévois les contraintes nécessaires aux futures protections contre :
+Vérifie sa compatibilité avec les contraintes d’unicité introduites dans MR5.
 
-* Les demandes dupliquées.
-* Les dispatchs concurrents.
-* La perte de résultat.
-* Le redémarrage du LMC ou du dispatcher.
-* Les tentatives obsolètes.
+Une nouvelle génération ne doit pas pouvoir autoriser automatiquement une nouvelle création Orq lorsqu’une opération précédente reste non résolue.
 
-Justifie les champs nécessaires à la gestion future des leases, retries et générations.
+Ne présente pas le Workflow ID comme une garantie exactly-once.
 
-Ne développe pas encore le dispatcher ni le mécanisme de traitement effectif de l’outbox.
+5. Préservation des garanties de T1 et T3
 
-Ne présente pas les seules contraintes du schéma comme une garantie complète d’idempotence ou de concurrence.
+Conserve impérativement :
 
-5. Migration Alembic
+* maximum_attempts=1 pour les Activities mutatives.
+* Désactivation des retries de transport susceptibles de rejouer une création.
+* Absence de retry automatique après mutation potentiellement effectuée.
+* Gestion conservatrice des résultats inconnus.
+* Interdiction d’adopter un projet sur la seule base de son nom.
+* Absence de suppression automatique de ressources Orq.
+* Distinction entre identifiant Orq vérifié et identifiant candidat.
 
-Ajoute une migration linéaire 0005 et les modèles ORM correspondants.
+Aligne explicitement UNKNOWN_OUTCOME avec sa représentation persistée NEEDS_RECONCILIATION.
 
-La chaîne doit rester unique :
+Aucune information inconnue concernant une mutation ne doit être interprétée comme une absence de mutation.
 
-0001 → 0002 → 0003 → 0004 → 0005
+6. Points de vigilance pour les futures étapes
 
-Ne modifie aucune migration précédente.
+MR5 introduit ON DELETE RESTRICT sur les projets possédant des opérations.
 
-Vérifie :
+Documente l’impact potentiel sur la suppression actuelle des projets LMC, notamment lorsque toutes les opérations sont terminées.
 
-* Le head unique.
-* La migration depuis une base vide.
-* La migration depuis une base 0004 contenant des données.
-* La préservation des mappings existants.
-* Les clés étrangères et leur comportement lors des suppressions.
-* Les contraintes d’unicité.
-* Les contraintes de validité des données.
-* Les index réellement nécessaires.
-* La cohérence ORM/SQL.
-* Le comportement du downgrade.
-* Le refus de tout downgrade susceptible de supprimer silencieusement des données utiles.
+Identifie également les implications des contraintes d’unicité projet/version/mode sur le reprovisioning et les nouvelles tentatives.
 
-La chaîne de migrations reste provisoire, locale et non déployable avant adaptation au chantier officiel Alembic.
+Nous devrons définir explicitement ces comportements avant leur exposition dans l’API et le frontend.
 
-6. Sécurité
-
-Aucun secret ne doit être enregistré dans les opérations, l’outbox ou les informations de diagnostic.
-
-Ne stocke notamment aucun :
-
-* PAT Jira ou GitLab.
-* Token Vault.
-* Credential Orq.ai.
-* Clé API temporaire.
-* Credential utilisateur.
-* Contenu brut de réponse SDK potentiellement sensible.
-
-Prévois uniquement les références nécessaires à la récupération ultérieure des informations depuis leurs sources autorisées.
+Ne modifie pas le schéma MR5 dans cette micro-MR. Si une incohérence structurelle est découverte, présente-la avant toute correction.
 
 7. Limitation du périmètre
 
-Cette micro-MR concerne exclusivement le schéma de persistance, les modèles ORM, les migrations, les tests et la documentation.
-
 Ne développe pas encore :
 
-* Le store SQL complet.
+* Le store SQL.
 * Les opérations CAS effectives.
-* Le dispatcher Temporal.
-* Le Worker métier.
+* L’enqueue transactionnel.
+* Le dispatcher.
+* Le Worker métier exécutable.
 * Les endpoints API.
 * Le frontend.
-* Le provisioning des autres ressources Orq.
+* Le provisioning d’autres ressources Orq.
 
-Aucune activation réelle du provisioning à ce stade.
+Aucune nouvelle migration Alembic n’est attendue pour MR6.
 
-8. Tests
+Évite toute complexité qui ne serait pas directement nécessaire à l’intégration de T3 avec MR4 et MR5.
+
+8. Tests et qualification
 
 Exécute les tests ciblés, les tests cumulés et la suite complète.
 
-La nouvelle référence de non-régression est :
+La référence de non-régression est désormais :
 
-* 268 tests réussis.
+* 276 tests réussis.
 * 27 échecs préexistants.
 * 15 sous-tests réussis.
 
-Compare les node IDs, les traces normalisées et leurs signatures avec la référence existante.
+Compare les node IDs et les traces normalisées avec la référence précédente.
 
-Utilise PostgreSQL 16 pour les validations réelles de migrations et de contraintes.
+Teste notamment la sérialisation, la validation des contrats, leur versionnement, la détermination des Workflow IDs, le déterminisme du Workflow et les scénarios de concurrence pouvant être simulés à ce stade.
 
-Tu peux réutiliser notre méthode de qualification Docker temporaire isolée, sans affecter aucune ressource existante.
-
-Documente précisément les tests exécutés, les résultats obtenus et les validations restantes.
+Distingue les garanties réellement implémentées de celles qui nécessiteront le futur store SQL et le dispatcher.
 
 9. Contraintes impératives
 
@@ -174,31 +153,28 @@ Documente précisément les tests exécutés, les résultats obtenus et les vali
 * Aucune modification du Docker Compose original.
 * Aucune modification des scripts 01, 02 et 03.
 * Aucune modification des configurations de lancement VS Code.
-* La procédure habituelle de démarrage du LMC doit rester strictement inchangée.
+* La procédure standard de lancement du LMC doit rester strictement inchangée.
 * Temporal et Orq.ai doivent rester optionnels.
-* Préserve tous les espaces précédents.
+* Préservation intégrale de tous les espaces précédents.
 
-10. Documentation et restitution
+10. Documentation
 
-Crée une documentation technique dédiée à MR5 en anglais.
+Crée une documentation technique dédiée à MR6 en anglais.
 
 Mets à jour LMC_WORKSPACE_INDEX.md et LOCAL_LMC_PARITY_ROADMAP.md.
 
-Explique chaque table, chaque champ, chaque contrainte et chaque décision afin que je puisse facilement présenter cette micro-MR lors d’une future revue.
-
 À la fin, présente-moi en français :
 
-* Les fichiers créés et modifiés.
-* Le diff fonctionnel.
-* Le schéma retenu.
-* La justification de chaque choix.
+* Les fichiers modifiés.
+* Les évolutions des contrats.
+* La stratégie de Workflow ID retenue.
+* Les décisions et leurs justifications.
 * Les résultats réels des tests.
-* Les garanties effectivement implémentées.
-* Les limites restantes.
+* Les garanties et limites restantes.
 * La prochaine micro-MR recommandée.
 
 Ne commence pas l’étape suivante sans mon accord.
 
-Notre objectif final reste la parité fonctionnelle complète avec le Mock LMC depuis l’interface du véritable LMC lancé localement, avant tout déploiement en préproduction.
+Notre priorité reste d’obtenir rapidement une première intégration verticale fonctionnelle depuis l’interface du véritable LMC local, puis d’atteindre la parité complète avec le Mock LMC avant tout déploiement en préproduction.
 
-Tu peux commencer MR5 dans ce périmètre.
+Tu peux commencer MR6 dans ce périmètre.
