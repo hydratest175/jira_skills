@@ -1,147 +1,184 @@
-Je souhaite apporter une précision importante concernant ProjectOrqSaga et la table saga_project_orq.
+Je valide l’architecture de convergence proposée avec la réutilisation directe de ProjectOrqSaga.
 
-Cette table a été créée spécifiquement pour notre future intégration Orq.ai. Nous sommes libres d’en faire évoluer le schéma, les champs, les contraintes et le fonctionnement.
+Nous retenons les décisions suivantes :
 
-Nous ne sommes donc pas obligés de conserver sa structure actuelle.
+* saga_project_orq devient l’unique table d’opérations de provisioning Orq.
+* orq_project_mappings conserve le mapping durable et l’identité distante vérifiée.
+* orq_project_temporal_start_outbox conserve l’état de livraison Temporal.
+* orq_project_provisioning_operations ne sera pas créée dans la nouvelle base de convergence.
+* Aucune double écriture.
+* Réutilisation maximale de notre Store PostgreSQL, de nos contrats V2, de nos Activities, de notre Workflow et de nos tests existants.
+* Réutilisation des mécanismes Repair, des endpoints et des permissions existants.
+* Conservation de toutes nos protections contre les mutations concurrentes et ambiguës.
 
-L’objectif principal est de respecter les conventions existantes du LMC et de réutiliser ses mécanismes Saga, Repair, diagnostic et support.
+Nous pouvons maintenant poursuivre et terminer C0.
 
-1. Nouvelle orientation privilégiée
+1. Espace de qualification
 
-Puisque notre propre table orq_project_provisioning_operations n’a pas encore été publiée ni déployée officiellement, je souhaite privilégier la réutilisation directe de saga_project_orq comme unique table d’opérations de provisioning Orq.
-
-L’idée est de reprendre le schéma final et les garanties développées dans MR5, MR6 et MR7, puis de les intégrer au modèle ProjectOrqSaga existant.
-
-Nous souhaitons idéalement conserver trois tables aux responsabilités distinctes :
-
-* saga_project_orq : opérations de provisioning, statuts, générations, diagnostics, mutations et résultats.
-* orq_project_mappings : mapping durable et identité vérifiée des projets Orq.
-* orq_project_temporal_start_outbox : livraison fiable des demandes de démarrage Temporal.
-
-Nous ne souhaitons pas maintenir simultanément saga_project_orq et orq_project_provisioning_operations si elles remplissent les mêmes responsabilités.
-
-Aucune double écriture ni duplication temporaire inutile.
-
-2. Réutilisation de nos développements
-
-Analyse comment transférer notre schéma final vers ProjectOrqSaga en conservant au maximum :
-
-* Notre Store PostgreSQL.
-* Nos contrats V2.
-* Nos Activities V2.
-* Notre Workflow Temporal.
-* Notre logique de réconciliation T1.
-* Nos mécanismes CAS.
-* Nos générations.
-* Nos snapshots immuables.
-* Notre réservation durable avant mutation.
-* Notre gestion des résultats candidats et confirmés.
-* Notre gestion de UNKNOWN_OUTCOME et NEEDS_RECONCILIATION.
-* Nos tests existants.
-
-Privilégie une adaptation du modèle SQLAlchemy, des migrations et des références dans notre code plutôt qu’une réimplémentation de la logique métier.
-
-Vérifie précisément quelles modifications sont réellement nécessaires.
-
-3. Réutilisation des champs Saga existants
-
-Analyse les champs et conventions actuellement présents dans ProjectOrqSaga.
-
-Conserve ou adapte les éléments pertinents, notamment :
-
-* La relation avec le projet LMC.
-* Le type d’opération.
-* Les statuts.
-* Le timestamp de claim.
-* La référence de support.
-* Les codes d’erreur.
-* Les messages de diagnostic sécurisés.
-* Les timestamps.
-
-Évite de créer de nouveaux champs si un champ existant peut remplir exactement la même responsabilité sans perte de garantie.
-
-En revanche, ne fusionne pas deux champs ayant des significations différentes uniquement pour réduire le nombre de colonnes.
-
-Vérifie les différences entre notre machine à états et les statuts Saga existants.
-
-4. Cardinalité et historique
-
-Vérifie que le modèle enrichi permet de représenter toutes les opérations nécessaires au cours du cycle de vie d’un projet.
-
-Il doit notamment permettre :
-
-* Plusieurs opérations historiques pour un même projet.
-* Plusieurs générations de provisioning.
-* Une distinction entre PLAN et APPLY.
-* Une seule opération non résolue lorsque cette restriction est nécessaire.
-* La conservation des résultats confirmés.
-* La conservation des mutations ambiguës.
-* Une association fiable avec l’outbox Temporal.
-
-Ne reproduis pas automatiquement le mécanisme de suppression des Sagas après réussite utilisé pour d’autres ressources du LMC.
-
-Notre historique d’opérations et les preuves nécessaires à la prévention des doublons doivent être conservés.
-
-5. Migrations Alembic
-
-Dans le cadre de la convergence vers la dernière version du LMC, étudie une migration additive qui enrichit directement saga_project_orq.
-
-Ne crée pas notre ancienne table orq_project_provisioning_operations pour ensuite la renommer ou la supprimer si cette étape n’est pas nécessaire.
-
-Ne supprime pas non plus la table Saga existante sans justification technique.
-
-Vérifie la compatibilité avec les éventuelles données déjà présentes, les contraintes existantes et les migrations officielles.
-
-Adapte les relations de l’outbox afin qu’elles référencent le modèle d’opération retenu.
-
-Conserve intégralement nos anciens espaces de travail et leurs migrations historiques.
-
-6. Intégration Repair
-
-Le mécanisme de support doit rester celui du LMC existant.
-
-Réutilise les conventions et services associés à :
-
-* ProjectOrqSaga.
-* LmcRepairProjectModal.tsx.
-* POST /v1/projects/{project_ref}/repair.
-* GET /v1/projects/{project_ref}/operation-progress.
-* Les permissions SpiceDB existantes.
-
-Il ne doit exister qu’une seule source autoritative pour les statuts des opérations de provisioning Orq.
-
-Une action Repair ne doit jamais permettre de contourner les protections contre les mutations ambiguës ou de rejouer automatiquement une création Orq potentiellement effectuée.
-
-7. Mise à jour de la roadmap
-
-Prends cette nouvelle orientation en compte dans l’analyse de convergence et la roadmap C0 à C10+.
-
-C0 reste consacré à la qualification de la nouvelle base.
-
-C1 doit concerner le mapping durable.
-
-C2 doit désormais privilégier l’enrichissement de ProjectOrqSaga et l’intégration de l’outbox, en reprenant notre schéma final existant.
-
-C3 doit privilégier le portage et l’adaptation de nos composants métier et de persistance, sans réimplémentation inutile.
-
-Indique précisément les modifications nécessaires et les tests pouvant être directement réutilisés.
-
-Si cette approche présente une incompatibilité structurelle importante, explique-la avant de proposer une alternative.
-
-8. Contraintes
-
-Pour le moment, mets à jour l’analyse et la roadmap. Poursuis uniquement la qualification C0 déjà autorisée.
-
-Ne commence pas C1, C2 ou C3 avant validation.
-
-Préserve tous les espaces existants, notamment la nouvelle base située dans :
+Utilise comme nouvelle base de référence :
 
 /workspace/LEA_Workspace/lcc_last_version/lcc
 
-Aucune opération Git ou GitLab, aucune modification de l’infrastructure existante, aucun appel distant Orq ou Temporal et aucun déploiement.
+Crée, si ce n’est pas déjà fait :
 
-La procédure standard de lancement du LMC doit rester inchangée.
+/workspace/LEA_Workspace/lcc-c0-baseline-qualification
 
-Documentation technique en anglais et restitution en français.
+Ne reporte encore aucun développement Orq dans cet espace.
 
-Notre priorité est de réutiliser au maximum nos développements, de respecter les conventions existantes du LMC et d’éviter toute duplication fonctionnelle.
+Préserve intégralement tous les espaces de travail existants.
+
+Ne copie aucun credential, fichier .env, environnement virtuel, cache inutile ou métadonnée Git.
+
+2. Qualification des tests existants
+
+Tu as identifié :
+
+* 30 tables SQL.
+* 30 tables ORM.
+* 13 triggers.
+* 2 fonctions.
+* 22 inserts de référence.
+* 9 tests ciblés réussis.
+* 3 échecs liés à des assertions apparemment obsolètes.
+
+Vérifie précisément que les différences constatées correspondent à des évolutions légitimes du LMC.
+
+Ne modifie pas simplement les valeurs attendues des tests pour les faire passer.
+
+Identifie les nouvelles tables et données de référence, puis vérifie leur cohérence avec les modèles ORM et les migrations.
+
+Exécute la suite complète des tests disponibles afin d’établir une nouvelle référence de non-régression.
+
+Conserve les node IDs, traces normalisées et signatures des échecs préexistants.
+
+Présente séparément les éventuelles corrections minimales nécessaires.
+
+3. Qualification réelle PostgreSQL et Alembic
+
+Utilise PostgreSQL 18.4 neuf et strictement isolé, conformément à la nouvelle version du LMC et aux sources d’images autorisées dans notre environnement.
+
+Vérifie réellement :
+
+* La chaîne Alembic officielle.
+* Le head unique.
+* L’exécution de alembic upgrade head depuis une base vide.
+* La cohérence du schéma obtenu avec les modèles ORM.
+* Les tables, triggers, fonctions, contraintes et données de référence.
+* La réapplication de upgrade head.
+* Le comportement du mécanisme actuel d’initialisation des bases.
+* Les éventuelles divergences entre la baseline SQL et les migrations Alembic.
+
+Si possible, reconstruis des états historiques sur des bases temporaires isolées à partir des versions précédentes disponibles localement, afin de qualifier les chemins d’upgrade reproductibles.
+
+Ne considère pas une base synthétique comme une preuve de compatibilité avec toutes les bases historiques réelles.
+
+N’accède à aucune base existante pour effectuer cette qualification.
+
+Si l’inventaire d’une véritable base historique devient indispensable, explique précisément pourquoi et présente-moi la procédure de lecture seule nécessaire avant toute intervention.
+
+4. Limitation du chantier Alembic
+
+Nous ne souhaitons pas reprendre intégralement le chantier officiel Alembic.
+
+Distingue clairement :
+
+* Les problèmes bloquant réellement notre développement local.
+* Les problèmes non bloquants hérités du LMC.
+* Les problèmes concernant uniquement les migrations de bases historiques.
+* Les problèmes concernant uniquement le futur déploiement Kubernetes.
+
+Notre objectif est de poursuivre rapidement notre développement local.
+
+Si une correction est indispensable, présente le diff minimal proposé et sa justification avant de modifier le schéma ou les migrations.
+
+Ne crée aucun système de migrations concurrent.
+
+5. Préparation de C1 et C2
+
+Prépare le plan précis des deux prochaines micro-MR, sans commencer leur implémentation.
+
+C1 devra consolider MR1 et MR4 dans le mapping durable final.
+
+C2 devra enrichir directement saga_project_orq en réutilisant le schéma final de MR5 et MR7, puis créer l’outbox associée.
+
+Pour C2, conserve les champs et conventions Saga existants lorsque leurs responsabilités sont compatibles avec notre architecture.
+
+Prévois notamment :
+
+* operation_ref comme identifiant unique d’opération.
+* Plusieurs opérations historiques par projet.
+* Générations et snapshots immuables.
+* Réservation durable avant mutation.
+* Résultats candidats et vérifiés.
+* Références de support.
+* Statuts propres à la Saga Orq.
+* Conservation de UNKNOWN_OUTCOME.
+* Association fiable avec l’outbox.
+
+Ne modifie pas l’enum partagé par les autres Sagas.
+
+Ne supprime pas les opérations Orq après réussite.
+
+Ne crée aucune table intermédiaire inutile.
+
+Concernant les éventuelles données historiques présentes dans saga_project_orq, privilégie une stratégie fail-fast tant qu’aucune migration sûre de ces données n’a été définie et validée.
+
+N’invente aucun ID, clé, mapping ou hash Orq.
+
+Aucune ancienne opération ambiguë ne doit devenir automatiquement dispatchable.
+
+6. Préparation du portage
+
+Identifie précisément les fichiers de MR0 à MR7 qui pourront être directement réutilisés.
+
+Privilégie la réutilisation de notre implémentation et de nos tests plutôt qu’une réécriture.
+
+Découpe le futur portage C3 en micro-MR distinctes si nécessaire, notamment pour :
+
+* T1 et la réconciliation.
+* T2 et les fondations Temporal.
+* Les contrats et le Workflow V2.
+* Le Store PostgreSQL.
+* Les Activities V2.
+
+Chaque étape devra être réellement qualifiée avant de poursuivre.
+
+Conserve également les décisions fonctionnelles encore ouvertes concernant la suppression des projets, le retry manuel à configuration identique et les modifications concurrentes du projet.
+
+7. Contraintes impératives
+
+* Aucun développement C1 ou ultérieur pour le moment.
+* Aucune opération Git ou GitLab.
+* Aucun changement Kubernetes.
+* Aucun déploiement.
+* Aucun appel distant à Orq.ai.
+* Aucun nouveau Workflow Temporal distant.
+* Aucune modification des conteneurs, volumes, réseaux ou bases existants.
+* Seules les ressources Docker temporaires strictement isolées nécessaires à la qualification sont autorisées.
+* Aucune modification du Docker Compose original.
+* Aucune modification de la procédure standard de lancement du LMC.
+* Temporal et Orq.ai doivent rester optionnels.
+* Préservation intégrale de tous les espaces précédents.
+
+8. Documentation et restitution
+
+Complète la documentation de convergence et crée la documentation technique dédiée à C0 en anglais.
+
+Mets à jour LMC_WORKSPACE_INDEX.md et la roadmap de convergence.
+
+Présente-moi en français :
+
+* Les résultats réels des tests.
+* La nouvelle référence de non-régression.
+* Les résultats PostgreSQL et Alembic.
+* Les problèmes hérités.
+* Les corrections minimales nécessaires.
+* Les éventuels blocages.
+* Le plan précis de C1 et C2.
+* Les composants existants qui pourront être directement réutilisés.
+
+Indique explicitement si nous pouvons commencer C1 sans attendre la finalisation du chantier officiel Alembic.
+
+Notre objectif reste la parité fonctionnelle complète avec le Mock LMC depuis l’interface du véritable LMC lancé localement, incluant le support et le Repair, avant tout déploiement en préproduction.
+
+Tu peux terminer C0 dans ce périmètre. Ne commence pas C1 sans mon accord.
