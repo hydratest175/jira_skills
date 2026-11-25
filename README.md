@@ -1,33 +1,30 @@
-Je valide C2 sur son périmètre de qualification locale.
+Je valide C3a sur son périmètre de qualification locale.
 
 Notre nouvelle référence est désormais :
 
-* 136 tests réussis.
-* 27 échecs historiques identiques.
-* 10 nouveaux tests C2 réussis.
-* 163 cas JUnit.
+* 236 cas JUnit.
+* 209 cas JUnit réussis.
+* 180 tests pytest réussis et 29 sous-tests réussis.
+* 27 échecs historiques strictement identiques.
+* 73 cas de réconciliation ciblés réussis.
 * Aucune nouvelle régression.
 * PostgreSQL 18.4.
 * 32 tables applicatives.
-* 17 triggers.
-* 4 fonctions.
-* 85 index.
-* 390 contraintes applicatives.
 * Head Alembic unique : 0004_orq_saga_outbox.
+* Aucune modification des migrations, du schéma, des scripts ou de Docker Compose.
+* Aucune nouvelle dépendance introduite dans C3a.
 
-ProjectOrqSaga est désormais notre unique modèle d’opérations de provisioning Orq.
-
-Nous pouvons commencer C3a — Orq Project Reconciliation Core.
+Nous pouvons maintenant commencer C3b — Optional Temporal Foundation.
 
 1. Espace de travail
 
 Crée un nouvel espace local isolé :
 
-/workspace/LEA_Workspace/lcc-c3a-orq-reconciliation
+/workspace/LEA_Workspace/lcc-c3b-temporal-foundation
 
 Utilise comme base cumulative :
 
-/workspace/LEA_Workspace/lcc-c2-orq-saga-outbox
+/workspace/LEA_Workspace/lcc-c3a-orq-reconciliation
 
 Notre référence LMC originale reste :
 
@@ -37,221 +34,263 @@ Préserve intégralement tous les espaces précédents.
 
 Ne copie aucune métadonnée Git, aucun credential, fichier .env, environnement virtuel ou cache inutile.
 
-2. Réutilisation de T1
+2. Réutilisation de T2
 
-Notre objectif est de porter le travail existant, et non de le réimplémenter.
+Notre objectif est de porter directement notre fondation Temporal précédemment développée et qualifiée.
 
 Relis notamment :
 
-* lcc-t1-orq-reconciliation
+* lcc-t2-temporal-foundation
 * lcc-t3-orq-project-workflow
 * lcc-mr6-provisioning-contracts
 * lcc-mr7-postgresql-state-store
-* C2_ORQ_SAGA_OUTBOX.md
+* TEMPORAL_T2_FOUNDATION.md
+* C3A_ORQ_PROJECT_RECONCILIATION.md
 * LMC_SAGA_REPAIR_CONVERGENCE_ANALYSIS.md
 * LMC_WORKSPACE_INDEX.md
 * La roadmap de convergence.
 
-Ne te limite pas à la première version de T1.
+Identifie la version finale de T2 après ses derniers durcissements.
 
-Identifie également les corrections et durcissements apportés à sa logique de réconciliation lors de T3, MR6 et MR7.
+Vérifie également si des corrections directement liées à la fondation Temporal ont été introduites dans les espaces ultérieurs.
 
-Détermine la version cumulative la plus pertinente de chaque fichier à reporter afin de ne pas réintroduire des comportements précédemment corrigés.
+Réutilise directement le code et les tests existants lorsque cela est possible.
 
-Ne porte toutefois pas les composants Temporal, Store ou Activities appartenant aux étapes suivantes.
+Ne redéveloppe pas une nouvelle fondation Temporal.
 
-3. Périmètre fonctionnel
+3. Qualification historique à préserver
 
-Porte les composants de réconciliation de projet Orq précédemment développés, notamment les fichiers correspondant à :
+Nous avons déjà qualifié réellement Temporal en préproduction depuis notre environnement de développement.
 
-* orq_project_resources.py
-* orq_project_reconciliation.py
-* La fonction reconcile_orq_project()
-* Les contrats nécessaires à cette logique.
-* Les gateways et interfaces associées.
-* La classification des résultats et des erreurs.
-* Les tests unitaires et gateways factices existants.
+Les résultats historiques comprennent :
 
-Vérifie les chemins et noms exacts dans les espaces historiques.
+* SDK Python temporalio 1.18.2.
+* Connexion au serveur Temporal préproduction.
+* Namespace default.
+* Santé et visibilité validées.
+* Connexion depuis le Dev Container via un tunnel établi depuis le DevEnv.
+* Task Queue dédiée et vérifiée.
+* Workflow LmcTemporalNoop réellement exécuté avec le statut COMPLETED.
+* Arrêt propre du Worker local.
+* Aucun appel Orq.ai.
+* Aucune modification des Workers ou Workflows existants.
 
-Réutilise directement le code existant lorsque cela est possible.
+La dernière qualification T2 comportait 41 nouveaux tests réussis.
 
-N’introduis aucune nouvelle abstraction ou duplication de logique métier sans nécessité démontrée.
+Ne recommence pas maintenant les recherches Kubernetes, réseau, authentification ou port-forward.
 
-4. Garanties de réconciliation
+Conserve ces résultats dans la documentation comme qualification historique.
 
-Préserve impérativement les décisions précédemment validées :
+Ils ne constituent pas une nouvelle qualification réelle de C3b sur la base actuelle.
 
-* Réutilisation d’un projet Orq uniquement lorsque son identité et son association au projet LMC sont vérifiées.
-* Aucune adoption d’un projet Orq uniquement sur la base de son nom.
-* Distinction entre un identifiant candidat et une identité distante vérifiée.
-* Validation de l’ID et de la clé projet Orq.
-* Aucune invention de mapping.
-* Aucune création automatique après un résultat ambigu.
-* Aucune suppression ou compensation DELETE automatique.
-* Classification correcte des erreurs connues et des résultats incertains.
-* Conservation de UNKNOWN_OUTCOME.
-* Aucun retry automatique après une mutation potentielle.
-* Désactivation des retries de transport pour les appels mutatifs.
+4. Dépendances Temporal
 
-Ne considère pas une erreur HTTP, un timeout ou une perte de connexion après l’envoi potentiel d’une mutation comme une preuve que la création a échoué.
+Reprends le mécanisme de dépendances optionnelles précédemment développé dans T2, notamment :
 
-Préserve notamment les durcissements concernant mutation_attempted introduits dans nos développements ultérieurs.
+backend/requirements-temporal.lock
 
-Vérifie la compatibilité avec les attentes du futur Store PostgreSQL C3d.
+Vérifie les chemins exacts dans les espaces historiques.
 
-La réservation durable et le CAS applicatif ne sont pas encore raccordés dans C3a. Ne présente donc pas le portage de T1 comme une garantie d’idempotence distribuée complète.
+Préserve les principes suivants :
 
-5. Compatibilité avec le SDK Orq
+* SDK Temporal optionnel.
+* Dépendances verrouillées.
+* Utilisation exclusive des sources de dépendances autorisées.
+* Aucune introduction de Temporal dans les dépendances normales du LMC.
+* Aucun besoin d’installer Temporal CLI.
+* Aucun serveur Temporal local.
+* Aucun téléchargement automatique d’un serveur de test Temporal.
 
-Notre qualification historique utilisait orq-ai-sdk==4.13.14.
+Vérifie la compatibilité de temporalio 1.18.2 avec la nouvelle base.
 
-Vérifie la version réellement disponible et utilisée dans la nouvelle base du LMC.
+Ne change pas de version sans incompatibilité démontrée et justification technique.
 
-Privilégie la réutilisation des dépendances existantes et autorisées.
+5. Configuration Temporal optionnelle
 
-Identifie les éventuelles incompatibilités concernant :
+Porte la configuration finale précédemment qualifiée dans T2.
 
-* Les méthodes de création et de consultation des projets.
-* Les structures de réponse.
-* Les types d’identifiants.
-* La clé projet Orq.
-* La classification des erreurs.
-* La configuration des retries et des timeouts.
+Préserve notamment :
 
-Ne présume pas de l’existence d’un mécanisme d’idempotence natif Orq sans preuve.
+* Temporal désactivé par défaut.
+* Endpoint SDK/gRPC configurable.
+* Namespace configurable.
+* Task Queue configurable et dédiée.
+* Identité du Worker configurable.
+* Configuration TLS et authentification, selon les capacités déjà implémentées.
+* Deadlines de connexion et de RPC.
+* Gestion explicite des configurations invalides.
+* Aucune valeur spécifique à nos tests historiques codée en dur.
+* Aucun credential ou secret dans le code, les logs ou la documentation.
 
-N’effectue aucun appel réel à Orq.ai pour cette qualification.
+Ne confonds jamais l’adresse de la Web UI Temporal avec l’endpoint SDK/gRPC.
 
-Ne modifie pas les dépendances existantes sans nécessité technique justifiée.
+Ne considère pas le namespace historique default comme une valeur obligatoirement applicable à tous les environnements.
 
-6. Compatibilité avec la nouvelle architecture Saga
+Préserve les mécanismes de validation et de protection de la Task Queue introduits dans T2, notamment le mécanisme d’ownership lorsqu’il est applicable.
 
-Notre architecture est désormais composée de :
+Ne présente pas cet ownership comme une garantie d’exclusivité distribuée s’il ne fournit pas réellement cette propriété.
 
-* orq_project_mappings : identité distante et mapping durable.
-* saga_project_orq : opérations, mutations, résultats, statuts et diagnostics.
-* orq_project_temporal_start_outbox : livraison Temporal.
+6. Client Temporal et gestion des erreurs
 
-Vérifie que les résultats produits par la réconciliation sont compatibles avec les champs et contraintes introduits dans C1 et C2.
+Porte les composants existants permettant :
+
+* La création du client Temporal.
+* La validation de la configuration.
+* La gestion des connexions.
+* Les vérifications de disponibilité.
+* La gestion des timeouts.
+* La remontée d’erreurs assainies.
+* La distinction entre un client optionnel et un client requis.
+
+Préserve le comportement historique :
+
+* Temporal désactivé : aucun appel réseau.
+* Temporal optionnel indisponible : aucun impact sur le fonctionnement normal du LMC.
+* Temporal requis indisponible : erreur explicite et contrôlée.
+* Absence du SDK optionnel : le LMC continue de fonctionner normalement.
+
+Ne crée aucune connexion Temporal automatique au démarrage standard du backend.
+
+Ne couple pas le cycle de vie de Temporal au lifespan FastAPI.
+
+7. Préservation du fonctionnement du LMC
+
+Cette contrainte est impérative.
+
+La manière habituelle de lancer le LMC doit rester strictement inchangée.
+
+Ne modifie pas :
+
+* Les scripts 01, 02 et 03.
+* Docker Compose.
+* Les configurations VS Code.
+* Les mécanismes de démarrage du backend.
+* Les configurations Kubernetes.
+* Les migrations Alembic.
+
+Temporal ne doit devenir une dépendance obligatoire d’aucune fonctionnalité existante.
+
+Le futur Worker métier sera un processus séparé, optionnel et désactivé par défaut.
+
+Son intégration effective appartient à C4.
+
+8. Préservation de notre architecture Saga
+
+Vérifie la compatibilité de la fondation Temporal avec l’architecture retenue :
+
+* orq_project_mappings : mapping durable et identité distante vérifiée.
+* saga_project_orq : unique table d’opérations de provisioning Orq.
+* orq_project_temporal_start_outbox : livraison fiable des demandes de démarrage Temporal.
+
+Ne modifie aucune de ces tables.
 
 Ne recrée pas orq_project_provisioning_operations.
 
-Préserve la séparation entre la logique métier de réconciliation, la persistance PostgreSQL et l’orchestration Temporal.
+Ne développe pas encore la connexion entre Temporal, ProjectOrqSaga et l’outbox.
 
-Ne raccorde pas encore directement T1 au Store.
+9. Tests et qualification
 
-7. Helper Orq existant dans le LMC
+Porte les tests historiques T2, y compris les tests ajoutés lors du durcissement final.
 
-La nouvelle version du LMC contient déjà un helper de création de projet Orq.
-
-L’analyse de convergence a identifié des incompatibilités potentielles avec nos garanties, notamment concernant les résultats ambigus et les compensations automatiques.
-
-Vérifie que le portage de T1 :
-
-* Ne réutilise pas accidentellement ce comportement incompatible.
-* Ne déclenche aucune suppression automatique.
-* Ne modifie pas le fonctionnement actuel du LMC.
-* N’introduit pas deux chemins actifs de provisioning Orq.
-
-Ne supprime ni ne modifie ce helper dans C3a.
-
-Documente précisément la manière dont notre future intégration devra éviter son utilisation incompatible.
-
-8. Tests et qualification
-
-Porte les tests historiques de T1 ainsi que les tests de durcissement ultérieurs relevant directement de la réconciliation.
-
-Notre qualification historique T1 comportait 37 tests ciblés réussis.
-
-Ne cherche cependant pas à reproduire artificiellement ce nombre si les tests ont évolué depuis.
+Utilise des clients factices et des dépendances contrôlées.
 
 Vérifie notamment :
 
-* Réutilisation d’un mapping valide.
-* Mapping incohérent ou obsolète.
-* Absence de mapping.
-* Collision de noms.
-* Création nominale simulée.
-* Résultat incomplet.
-* Résultat candidat non vérifié.
-* Identité distante contradictoire.
-* Timeout pendant une mutation.
-* Perte de connexion.
-* Erreurs HTTP pertinentes.
-* Absence de retry mutatif automatique.
-* Classification UNKNOWN_OUTCOME.
-* Absence de compensation DELETE.
-* Rejet des identifiants invalides.
-* Compatibilité avec les contrats attendus par MR7.
+* Temporal désactivé.
+* SDK optionnel absent.
+* SDK disponible.
+* Configuration valide et invalide.
+* Connexion simulée réussie.
+* Connexion indisponible.
+* Timeout.
+* Erreurs assainies.
+* Comportement optionnel et requis.
+* Validation de la Task Queue.
+* Protection d’ownership.
+* Absence de connexion implicite au démarrage.
+* Absence d’impact sur les fonctionnalités existantes du LMC.
 
-Utilise exclusivement des gateways factices et des dépendances contrôlées.
+Si les outils historiques de qualification no-op font partie du périmètre T2, conserve-les uniquement comme outils de test explicitement isolés et inactifs.
 
-Distingue clairement les tests portés, les tests adaptés et les nouveaux tests.
+N’exécute aucun nouveau Workflow distant.
 
-9. Non-régression
+Ne démarre aucun Worker connecté à Temporal préproduction.
 
-Utilise C2 comme nouvelle référence :
+Ne lance aucun serveur Temporal local, même temporaire.
 
-* 136 tests réussis.
+N’effectue aucune commande Kubernetes.
+
+Distingue les garanties réellement requalifiées localement des garanties historiques qui devront être revérifiées ultérieurement sur Temporal préproduction.
+
+10. Non-régression
+
+Utilise C3a comme nouvelle référence :
+
+* 236 cas JUnit.
+* 209 cas JUnit réussis.
+* 180 tests pytest réussis.
+* 29 sous-tests réussis.
 * 27 échecs historiques identiques.
-* 163 cas JUnit.
-* 32 tables.
-* 17 triggers.
 * Head Alembic 0004_orq_saga_outbox.
+* 32 tables applicatives.
 
 Exécute les tests ciblés et la suite complète.
 
-Compare les node IDs, traces normalisées et signatures des échecs avec C2.
+Compare les node IDs, traces normalisées et signatures des échecs avec C3a.
 
-Vérifie également la compilation Python et pip check.
+Vérifie également :
 
-Aucune nouvelle migration Alembic ni modification du schéma SQL n’est attendue.
+* La compilation Python.
+* pip check.
+* Le fonctionnement des imports sans le SDK Temporal.
+* Le fonctionnement des imports avec les dépendances Temporal optionnelles.
+* L’absence de nouvelle dérive SQL/ORM.
+* L’intégrité des composants C1, C2 et C3a.
 
-10. Limitation du périmètre
+Conserve une distinction explicite entre les tests pytest, les sous-tests et les cas JUnit.
 
-C3a doit rester exclusivement consacrée au portage de la logique de réconciliation T1.
+11. Limitation du périmètre
+
+C3b doit rester strictement consacrée au portage de la fondation Temporal optionnelle T2.
 
 Ne commence pas :
 
-* C3b : Temporal Foundation.
 * C3c : contrats et Workflow V2.
 * C3d : Store PostgreSQL.
 * C3e : Activities V2.
-* Worker Temporal.
+* C4 : Worker métier.
 * Enqueue transactionnel.
 * Dispatcher.
 * API.
 * Frontend.
 * Repair.
 
-Ne modifie aucun comportement applicatif existant pour activer notre provisioning.
+Aucun nouveau Workflow métier ne doit être implémenté.
 
-11. Contraintes impératives
+Aucun comportement de provisioning ne doit être activé.
+
+12. Contraintes impératives
 
 * Micro-MR minimale et facilement explicable.
-* Réutilisation maximale du code et des tests existants.
+* Réutilisation maximale du travail existant.
 * Aucune opération Git ou GitLab.
 * Aucun changement Kubernetes.
 * Aucun déploiement.
 * Aucun appel réel à Orq.ai.
-* Aucun Workflow Temporal distant.
+* Aucun appel distant à Temporal.
+* Aucun nouveau Workflow distant.
 * Aucune modification des conteneurs, volumes, réseaux ou bases existants.
-* Aucune modification des scripts 01, 02 et 03.
-* Aucune modification du Docker Compose original.
-* Aucune modification des configurations de lancement VS Code.
+* Aucune modification de Docker Compose.
 * Aucune modification du pont Alembic.
+* Aucune modification des scripts et configurations standards de lancement.
 * Préservation intégrale de tous les espaces précédents.
+* Temporal et Orq.ai restent optionnels.
 
-La procédure habituelle de lancement du LMC doit rester inchangée.
-
-Temporal et Orq.ai doivent rester optionnels pour les fonctionnalités existantes.
-
-12. Documentation et restitution
+13. Documentation et restitution
 
 Crée une documentation technique dédiée en anglais :
 
-documentation/C3A_ORQ_PROJECT_RECONCILIATION.md
+documentation/C3B_TEMPORAL_FOUNDATION.md
 
 Mets à jour LMC_WORKSPACE_INDEX.md et la roadmap de convergence.
 
@@ -259,23 +298,24 @@ Pour chaque fichier créé ou modifié, documente :
 
 * Son origine.
 * Son rôle.
-* Le comportement avant et après.
-* Le code directement réutilisé.
+* Les composants repris directement de T2.
 * Les adaptations nécessaires.
-* Leur justification.
+* Le comportement avant et après.
+* La justification technique.
 * Les alternatives éventuelles.
 
 Présente-moi en français :
 
 * Les fichiers portés.
-* Les corrections historiques conservées.
+* Les durcissements historiques conservés.
+* Les dépendances optionnelles retenues.
 * Les adaptations spécifiques à la nouvelle base.
 * Les résultats réels des tests.
-* Les garanties effectivement validées.
+* Les garanties effectivement requalifiées.
 * Les limites restantes.
-* La compatibilité avec les futurs contrats, Store et Activities.
-* La prochaine micro-MR C3b recommandée.
+* Les différences éventuelles avec T2.
+* La prochaine micro-MR C3c recommandée.
 
-Notre objectif reste d’atteindre rapidement la parité fonctionnelle complète avec le Mock LMC depuis l’interface du véritable LMC lancé localement, en réutilisant le mécanisme Repair existant, avant tout déploiement en préproduction.
+Notre objectif reste la parité fonctionnelle complète avec le Mock LMC depuis l’interface du véritable LMC lancé localement, en réutilisant le mécanisme Repair existant, avant tout déploiement en préproduction.
 
-Tu peux commencer C3a dans ce périmètre. Ne commence pas C3b sans mon accord.
+Tu peux commencer C3b dans ce périmètre. Ne commence pas C3c sans mon accord.
