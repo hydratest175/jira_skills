@@ -1,429 +1,465 @@
-Je valide C4 sur son périmètre de qualification locale.
+Je valide C4-Q comme qualification réelle limitée du Worker métier V2.
 
-Notre nouvelle référence est désormais :
+Les résultats acquis sont les suivants :
 
-* 451 cas JUnit.
-* 424 cas JUnit réussis.
+* Scénarios nominal et réutilisation réussis.
+* Résultat ambigu correctement classé UNKNOWN_OUTCOME.
+* Redémarrage réel du Worker conservant LOCAL_PERSISTENCE et empêchant tout double POST simulé.
+* Workflow de redémarrage terminé FAILED, confirmant la limitation C3e/C7.
+* Trois historiques Temporal réels rejoués avec succès.
+* Historique du scénario de redémarrage non conservé pour des raisons de sécurité.
 * 395 tests pytest réussis.
-* 29 sous-tests réussis.
-* 27 échecs historiques strictement identiques.
-* 57 tests ciblés C4 réussis.
-* Aucune nouvelle régression.
-* SDK Temporal 1.18.2.
-* PostgreSQL 18.4.
-* Head Alembic unique : 0004_orq_saga_outbox.
-* 32 tables, 17 triggers, 4 fonctions, 85 index et 390 contraintes.
-* Aucune modification du schéma.
+* 27 échecs historiques identiques.
+* Backend C4 inchangé.
+* Ressources Docker temporaires et tunnel nettoyés.
+* Aucun appel réel Orq.
 
-Avant de commencer C5, nous allons réaliser C4-Q : qualification réelle du Worker métier V2 avec Temporal préproduction et Orq simulé.
+Ne présente pas C4-Q comme une qualification intégralement réussie.
+
+Nous pouvons poursuivre vers C5 — Transactional Provisioning Enqueue and Generation Allocation.
 
 1. Espace de travail
 
-Utilise comme référence :
+Crée un nouvel espace local isolé :
+
+/workspace/LEA_Workspace/lcc-c5-transactional-provisioning-enqueue
+
+Utilise comme base cumulative :
 
 /workspace/LEA_Workspace/lcc-c4-temporal-provisioning-worker
 
-Crée un espace de qualification distinct si nécessaire :
+C4-Q constitue une référence de qualification, pas la nouvelle base applicative :
 
 /workspace/LEA_Workspace/lcc-c4q-temporal-real-qualification
 
-Préserve intégralement C4 et tous les espaces précédents.
-
-Notre référence LMC originale reste :
+La référence LMC originale reste :
 
 /workspace/LEA_Workspace/lcc_last_version/lcc
 
-C4-Q est une étape de qualification, pas une nouvelle fonctionnalité applicative.
+Préserve intégralement tous les espaces précédents.
 
-Ne modifie pas le code applicatif qualifié de C4.
+Ne copie aucune métadonnée Git, aucun credential, fichier .env, environnement virtuel, historique Temporal brut ou artefact de qualification sensible.
 
-Si une anomalie nécessite une correction, présente-la avec les preuves et propose une correction ciblée avant de modifier le code.
-
-2. Documentation et historique
+2. Documentation à relire
 
 Relis notamment :
 
-* TEMPORAL_T2_FOUNDATION.md
-* C3B_TEMPORAL_FOUNDATION.md
+* C1_ORQ_PROJECT_MAPPING.md
+* C2_ORQ_SAGA_OUTBOX.md
 * C3C_PROVISIONING_WORKFLOW_V2.md
 * C3D_POSTGRESQL_STATE_STORE.md
 * C3E_PROVISIONING_ACTIVITIES_V2.md
 * C4_TEMPORAL_PROVISIONING_WORKER.md
-* C4_TEMPORAL_REAL_QUALIFICATION_PLAN.md
+* C4Q_TEMPORAL_REAL_QUALIFICATION.md
 * LMC_SAGA_REPAIR_CONVERGENCE_ANALYSIS.md
 * LMC_WORKSPACE_INDEX.md
 * La roadmap de convergence.
+* Les documents historiques MR5, MR6 et MR7.
 
-Retrouve également les commandes et résultats de la qualification réelle T2.
+Inspecte également les mécanismes existants du LMC concernant :
 
-Nous avons déjà réussi :
+* Les permissions SpiceDB.
+* Les opérations de provisioning existantes.
+* Les Sagas.
+* Le Repair.
+* L’audit et les références de support.
+* Les transactions SQLAlchemy.
+* Les modifications et suppressions de projets.
 
-* La connexion au serveur Temporal préproduction.
-* La validation de la santé du serveur.
-* La visibilité du namespace default.
-* La connexion depuis le Dev Container via un tunnel établi depuis le DevEnv.
-* L’exécution réelle du Workflow LmcTemporalNoop.
-* L’utilisation d’une Task Queue de test dédiée.
+Réutilise les conventions existantes lorsque cela est possible.
 
-Ne recommence pas toute la recherche réseau, Kubernetes ou Artifactory.
+3. Objectif de C5
 
-Réutilise les mécanismes précédemment qualifiés après avoir vérifié leur disponibilité actuelle.
+Implémente un service applicatif permettant de préparer durablement une demande de provisioning Orq.
 
-3. Répartition des responsabilités
+Ce service doit assurer :
 
-Software Companion fonctionne depuis le Dev Container.
+* La validation de l’intention.
+* La validation des permissions.
+* Le chargement du projet.
+* La construction de l’état désiré.
+* L’allocation transactionnelle de la génération.
+* La déduplication des demandes.
+* La création de ProjectOrqSaga.
+* La création de l’entrée outbox correspondante.
+* La génération du Workflow ID déterministe.
 
-Il n’a pas directement accès à kubectl ni au DevEnv.
+C5 ne doit effectuer aucun démarrage Temporal et aucun appel Orq.
 
-Je réaliserai personnellement les commandes Kubernetes nécessaires depuis le DevEnv, comme pendant T2.
+Le service reste non raccordé aux endpoints publics et au frontend pendant cette étape.
 
-Lorsque mon intervention est nécessaire :
+4. Architecture et sources autoritatives
 
-* Donne-moi les commandes exactes à exécuter.
-* Précise dans quel terminal les exécuter.
-* Explique brièvement leur objectif.
-* Indique le résultat attendu.
-* Attends mon retour avant de poursuivre les opérations dépendantes.
+Conserve strictement les responsabilités suivantes :
 
-Tu peux rechercher les commandes historiques dans notre documentation locale.
+* Le projet LMC représente la configuration métier désirée.
+* ProjectOrqSaga représente les opérations et leur statut métier.
+* orq_project_mappings représente l’identité distante autoritative.
+* orq_project_temporal_start_outbox représente la livraison des demandes à Temporal.
+* Temporal représente l’orchestration, pas la source de vérité métier.
 
-Ne tente pas d’installer gcloud, kubectl, Temporal CLI ou de récupérer mes credentials DevEnv.
+Ne recrée pas orq_project_provisioning_operations.
 
-Ne modifie pas le Dev Container pour obtenir un accès Kubernetes.
+Ne crée aucune nouvelle Saga parallèle.
 
-4. Revalidation de la connexion Temporal
+Aucune double écriture.
 
-Réutilise le mécanisme de connexion précédemment qualifié pendant T2.
+Réutilise le schéma C2 et les composants C3 existants.
 
-Vérifie :
+Aucune nouvelle migration n’est attendue. Si le schéma actuel empêche une garantie indispensable, documente précisément le blocage et propose une correction minimale avant de l’implémenter.
 
-* Le tunnel depuis le DevEnv.
-* L’accessibilité depuis le Dev Container.
-* L’identité du cluster attendu.
-* Le namespace autorisé.
-* La santé du serveur.
-* La compatibilité du SDK.
-* Le mode TLS/authentification effectivement utilisé.
+5. Autorisation
 
-Ne suppose pas que les anciennes adresses réseau sont encore valides.
+Identifie les permissions LMC existantes permettant de demander une opération de provisioning sur un projet.
 
-Ne modifie pas l’exposition réseau du cluster et ne contourne aucune restriction.
+Inspecte notamment les conventions de contrôle d’accès du Repair et des opérations de provisioning existantes.
 
-N’expose pas le tunnel au-delà du périmètre nécessaire au test.
+Ne suppose pas automatiquement que la permission Repair autorise une nouvelle création Orq.
 
-Arrête-toi si l’environnement, les autorisations ou l’identité du cluster ne peuvent pas être confirmés.
+Ne crée pas de nouvelle permission SpiceDB sans nécessité démontrée.
 
-5. Isolation de la qualification
+Prévois une frontière d’autorisation explicite et testable, compatible avec les futures couches API et Repair.
 
-Utilise exclusivement :
+L’autorisation doit être vérifiée avant toute création d’opération et avant toute restitution d’une opération existante.
 
-* Le serveur Temporal préproduction existant et autorisé.
-* Une Task Queue de qualification unique.
-* Un Worker local dans le Dev Container.
-* Une base PostgreSQL 18.4 temporaire et isolée.
-* Des projets LMC entièrement synthétiques.
-* Des identités Orq entièrement synthétiques.
-* Un gateway Orq factice.
+Un utilisateur non autorisé ne doit pouvoir ni créer une opération, ni découvrir les informations d’une opération existante.
 
-La Task Queue doit respecter les conventions C4 :
+Si aucune permission existante ne convient clairement, documente le problème et présente une proposition avant de modifier la politique d’autorisation.
 
-lmc-orq-project-provisioning-v2-{12hex}
+6. Construction de l’état désiré
 
-L’identité du Worker doit respecter les conventions correspondantes.
+Réutilise directement orq_project_desired_state.py.
 
-Génère un nouvel identifiant pour cette qualification et vérifie que la queue ne présente pas de poller inattendu.
+Conserve les champs actuels :
 
-Conserve la même queue et la même identité logique pendant les scénarios de redémarrage qui nécessitent de reprendre un Workflow existant.
+* Business Line.
+* Sensibilité.
+* Nom.
+* Description.
+* teams=None, signifiant équipes Orq non gérées.
 
-La convention de nommage ne doit pas être présentée comme une garantie d’exclusivité distribuée.
+Réutilise le hash canonique existant.
 
-Ne réutilise aucune queue de traitement de documents ni la queue no-op historique.
+Ne duplique pas sa logique.
 
-6. Interdiction effective des appels Orq réels
+Ne fais pas confiance à un hash ou une version désirée fournis arbitrairement par le client.
 
-Ce point est impératif.
+Le snapshot doit être construit depuis les données autoritatives du LMC.
 
-Le Worker utilisé pendant C4-Q ne doit jamais pouvoir atteindre le véritable service Orq.ai.
+Il n’existe toujours pas de compteur indépendant de version désirée sur le projet.
 
-Utilise le mécanisme d’injection du gateway développé dans C4.
+Identifie comment allouer et valider la version nécessaire aux contrats V2 sans inventer une source autoritative inexistante.
 
-Le harness de qualification doit :
+Distingue explicitement génération d’opération et version de l’état désiré.
 
-* Injecter obligatoirement un gateway factice.
-* Refuser de démarrer si cette injection n’est pas effective.
-* Ne charger aucun credential Orq.
-* Ne charger aucun fichier .env provenant du LMC original.
-* Ne permettre aucun fallback vers le gateway réel.
-* Comptabiliser les appels de lecture et de mutation simulés.
+Teste également les modifications A vers B, puis B vers A, afin de ne pas confondre une configuration précédemment utilisée avec une nouvelle intention métier.
 
-Mets en place une protection locale, limitée au processus de qualification, contre les appels réseau Orq réels.
+7. Allocation transactionnelle de la génération
 
-Cette protection ne doit pas modifier le firewall, les réseaux Docker existants ni les configurations réseau de l’entreprise.
+La génération doit être allouée côté serveur et protégée contre les accès concurrents.
 
-Vérifie son efficacité avant tout démarrage de Workflow.
+Vérifie la cohérence avec :
 
-7. PostgreSQL temporaire
+* Les générations historiques de ProjectOrqSaga.
+* Le mapping existant.
+* Les contraintes C2.
+* Les attentes CAS du Store C3d.
 
-Crée uniquement les ressources Docker temporaires strictement nécessaires à la qualification.
+Deux demandes concurrentes ne doivent jamais obtenir la même génération pour deux opérations différentes.
 
-Utilise PostgreSQL 18.4 et applique les migrations C4 sur une base neuve.
+N’utilise pas un simple MAX(generation)+1 sans protection transactionnelle effective.
 
-Vérifie :
+Identifie le mécanisme de verrouillage approprié en respectant l’ordre historique du Store C3d :
 
-* Le head Alembic 0004_orq_saga_outbox.
-* Les 32 tables applicatives.
-* La présence de ProjectOrqSaga.
-* La présence du mapping et de l’outbox.
-* L’absence de l’ancienne table orq_project_provisioning_operations.
+Saga, projet, outbox, mapping.
 
-Ne touche à aucune base, aucun conteneur, volume ou réseau existant.
+Vérifie cet ordre directement dans le code.
 
-Ne lance aucun reset sur la stack LMC originale.
+Accorde une attention particulière au cas où aucune Saga n’existe encore.
 
-8. Préparation du harness de qualification
+Ne verrouille pas naïvement le projet puis une Saga existante si cela introduit un ordre contradictoire avec C3d.
 
-C5 n’étant pas encore implémentée, prépare les opérations de test directement dans la base isolée via un mécanisme de test explicite.
+Documente la stratégie retenue et teste réellement les accès concurrents avec plusieurs sessions PostgreSQL indépendantes.
 
-Préserve les contraintes C2 et les contrats V2.
+8. Création atomique de la Saga et de l’outbox
 
-Le harness devra préparer :
+La création de ProjectOrqSaga et de son entrée outbox doit se produire dans une seule transaction PostgreSQL.
 
-* Un projet LMC synthétique.
-* Une opération ProjectOrqSaga valide.
-* Une génération valide.
-* Un snapshot désiré cohérent.
-* Le hash canonique correspondant.
-* L’outbox de test nécessaire.
-* Un Workflow ID déterministe conforme à C3c.
+La Saga doit contenir les informations prévues par C2 et les contrats V2, notamment :
 
-Le démarrage du Workflow sera effectué explicitement par le harness de qualification, et non par le Worker.
+* operation_ref.
+* Projet interne.
+* Type d’opération.
+* Génération.
+* Mode.
+* Version du contrat.
+* Version et hash désirés.
+* Référence support.
+* Statut PENDING.
 
-Le harness ne doit pas constituer une implémentation alternative de C5 ou C6.
+L’outbox doit référencer operation_ref et contenir le Workflow ID déterministe ainsi que son état initial.
 
-Documente précisément que cette qualification contourne volontairement les futures couches enqueue et dispatcher, encore inexistantes.
+Réutilise directement le générateur de Workflow ID V2 existant.
 
-9. Scénario nominal réel
+Préserve les contraintes d’unicité.
 
-Démarre le Worker métier V2 sur la queue dédiée, puis lance un véritable Workflow LmcOrqProjectProvisionV2 depuis le harness.
+Ne persiste aucun credential ni payload arbitraire.
 
-Vérifie dans l’historique Temporal l’exécution réelle des quatre Activities :
+Si la création de l’outbox échoue, la Saga ne doit pas subsister seule.
 
-* lmc.orq_project.load_context.v2
-* lmc.orq_project.reconcile_once.v2
-* lmc.orq_project.persist_mapping.v2
-* lmc.orq_project.record_outcome.v2
+Si la création de la Saga échoue, aucune outbox orpheline ne doit subsister.
 
-Vérifie dans PostgreSQL :
+Aucun appel réseau Temporal, Orq ou Vault ne doit intervenir dans cette transaction. Les éventuelles vérifications distantes d’autorisation doivent être réalisées selon les conventions existantes avant l’ouverture de la transaction d’écriture.
 
-* La validation du contexte.
-* La réservation durable.
-* Le commit de mutation_attempted avant le POST simulé.
-* La libération des verrous.
-* La persistance du candidat.
-* La persistance de l’identité confirmée.
-* La création du mapping.
-* La finalisation de ProjectOrqSaga.
+9. Politique conservatrice de déduplication
 
-Critères attendus :
+Pour cette première étape, applique les principes suivants :
 
-* Workflow terminé.
-* Saga SUCCEEDED.
-* Mapping vérifié et cohérent.
-* Exactement un POST simulé pour cette opération.
-* Aucun appel Orq réel.
-* Aucun DELETE.
+* Deux demandes strictement identiques et concurrentes doivent converger vers la même opération lorsque les préconditions le permettent.
+* Une demande identique à une opération déjà persistée ne doit pas créer automatiquement une nouvelle génération.
+* Une demande conflictuelle lorsqu’une opération non résolue existe doit être refusée explicitement.
+* Un résultat UNKNOWN_OUTCOME doit bloquer toute nouvelle création.
+* Une opération NEEDS_RECONCILIATION ne doit pas être contournée par une nouvelle génération.
+* Un échec terminal ne doit pas autoriser implicitement une nouvelle création à configuration identique.
+* Aucun retry manuel forcé ne doit être implémenté pendant C5.
+* Les opérations historiques doivent être conservées.
 
-10. Scénario de réutilisation
+La restitution d’une opération existante ne doit pas transformer artificiellement un FAILED ou NEEDS_RECONCILIATION en succès.
 
-Prépare une opération distincte disposant d’un mapping autoritatif valide et d’une ressource Orq simulée correspondante.
+Vérifie la compatibilité de cette politique avec les contraintes C2 et les contrats V2.
 
-Vérifie qu’un Workflow V2 réel peut réutiliser cette identité distante sans nouvelle création.
+Toute incompatibilité ou décision métier supplémentaire doit être exposée avant modification.
 
-Critères attendus :
+10. Modification concurrente du projet
 
-* Mapping cohérent.
-* Opération correctement finalisée.
-* Zéro POST simulé pour cette opération.
+La configuration désirée doit correspondre à l’état réellement observé au moment de l’enqueue transactionnel.
 
-11. Scénario de redémarrage réel du Worker
+Vérifie notamment :
 
-Qualifie la reprise d’une exécution Temporal après interruption du processus Worker local.
+* Modification du projet avant l’allocation.
+* Modification concurrente pendant l’enqueue.
+* Modification après l’enqueue mais avant l’exécution du Worker.
+* Soft delete.
+* Hard delete.
+* Modification de project_ref.
 
-Utilise une nouvelle opération de test.
+Réutilise la revalidation autoritative C3d avant mutation.
 
-Choisis un point d’interruption contrôlable permettant d’obtenir des preuves fiables, idéalement après la persistance du résultat confirmé et avant la finalisation.
+Une demande devenue obsolète ne doit pas permettre une création distante.
 
-Le mécanisme de synchronisation du test doit rester extérieur au code applicatif.
+Ne modifie pas les fonctionnalités actuelles d’édition ou de suppression des projets du LMC.
 
-Vérifie :
+La politique globale de modification concurrente reste une décision ouverte.
 
-* L’arrêt effectif du Worker de qualification.
-* La conservation de l’état dans PostgreSQL.
-* La conservation de l’historique Temporal.
-* Le redémarrage du Worker sur la même queue.
-* La reprise ou la classification correcte du Workflow.
-* L’absence de second POST simulé.
-* L’absence de perte du mapping ou des preuves persistées.
+Documente précisément ce que C5 garantit et ce qui reste non couvert.
 
-Le compteur d’appels simulés doit survivre au redémarrage du Worker afin de démontrer réellement l’absence de doublon.
+11. PLAN et APPLY
 
-Distingue un arrêt gracieux, un arrêt forcé du processus et une exception simulée.
+Préserve les contrats PLAN/APPLY existants.
 
-Ne présente pas ces différents scénarios comme équivalents.
+Cependant, le Workflow V2 actuel est limité au chemin APPLY et rejette PLAN.
 
-N’arrête jamais un Worker existant autre que celui créé par notre qualification.
+C5 ne doit donc jamais créer une demande Temporal APPLY à partir d’une intention PLAN.
 
-12. Scénario de résultat ambigu
+Pour cette étape :
 
-Qualifie également, avec une opération distincte, un résultat ambigu après mutation simulée.
+* Qualifie prioritairement le chemin APPLY.
+* Rejette explicitement les usages PLAN non encore supportés.
+* Ne crée pas d’outbox pour un PLAN incompatible.
+* Ne développe pas un nouveau moteur de dry-run.
 
-Le gateway factice doit permettre de simuler une mutation dont la réponse est perdue ou incertaine.
+Le provisioning unifié PLAN/APPLY reste un jalon fonctionnel obligatoire avant la parité complète avec le Mock LMC.
 
-Vérifie :
+12. Audit et diagnostics
 
-* La persistance du marqueur mutation_attempted.
-* La classification appropriée du résultat.
-* La conservation des preuves.
-* L’état NEEDS_RECONCILIATION lorsque prévu par les contrats.
-* L’absence de nouvelle création automatique.
-* L’absence de compensation DELETE.
+Réutilise les conventions existantes du LMC concernant :
 
-Ne cherche pas à forcer artificiellement le statut SUCCEEDED.
+* L’identité de l’acteur.
+* Les références de support.
+* Les codes d’erreur.
+* Les événements d’audit.
+* La corrélation des opérations.
 
-La sécurité contre les doublons reste prioritaire.
+Ne développe pas de système d’audit parallèle.
 
-Le statut métier autoritatif doit être lu dans ProjectOrqSaga.
+Vérifie si les mécanismes actuels permettent de tracer durablement l’intention autorisée.
 
-Conserve la limitation C3e relative à LOCAL_PERSISTENCE après perte d’acquittement et documente son comportement observé.
+Distingue l’audit effectivement implémenté de celui qui reste à compléter.
 
-13. Replay Temporal réel
+Ne prétends pas que l’audit est atomique avec l’enqueue s’il ne l’est pas.
 
-Récupère uniquement l’historique de nos Workflows de qualification.
+Aucun token, credential, header, DSN, secret, payload brut ou exception fournisseur ne doit être persisté ou exposé.
 
-Exécute un replay hors ligne avec le SDK Temporal et les véritables définitions du Workflow V2.
+13. Temporal indisponible
 
-Vérifie :
+C5 doit être indépendant de la disponibilité effective du serveur Temporal.
 
-* La compatibilité de l’historique avec le Workflow.
-* L’absence d’erreur de déterminisme.
-* L’absence de nouvelle exécution métier distante pendant le replay.
-* L’absence de données sensibles dans les historiques de qualification.
+Lorsque le provisioning est explicitement autorisé et activé, une demande valide doit pouvoir être persistée sans connexion réseau à Temporal.
 
-Utilise exclusivement des données synthétiques dès la création des Workflows.
+Le futur dispatcher C6 sera responsable de sa livraison.
 
-Ne modifie pas les événements nécessaires au déterminisme pour assainir artificiellement l’historique.
+Lorsque le provisioning est désactivé par configuration, aucun comportement de provisioning ne doit être activé implicitement.
 
-Si un historique ne peut pas être conservé conformément aux contraintes de sécurité, ne l’exporte pas et documente la limitation.
+Préserve le fonctionnement normal du LMC sans SDK Temporal installé.
 
-14. Sécurité et arrêt
+Ne démarre aucun Worker ni Workflow.
 
-Les seuls effets distants autorisés sont les exécutions de qualification Temporal explicitement prévues et leurs historiques.
+14. Limitation C4-Q à conserver dans la roadmap
 
-Limite le nombre de Workflows aux scénarios documentés et borne leurs durées.
+Le scénario de redémarrage réel C4-Q a confirmé :
 
-N’effectue aucune opération administrative sur le serveur Temporal.
+* Conservation des preuves LOCAL_PERSISTENCE.
+* Absence de deuxième POST.
+* Workflow terminé FAILED.
 
-En cas d’échec :
+Cette limitation doit devenir un critère d’acceptation obligatoire de C7.
 
-* Ne relance pas aveuglément le Workflow.
-* Analyse les preuves persistées.
-* N’interviens que sur nos propres exécutions de test.
-* Demande mon intervention avant toute action distante supplémentaire non prévue.
+Le futur Repair devra distinguer :
 
-À la fin :
+* Une mutation distante réellement incertaine.
+* Une identité distante confirmée dont la persistance locale doit être réparée.
+* Un mapping déjà persisté dont la finalisation reste nécessaire.
 
-* Arrête le Worker local.
-* Vérifie qu’aucun processus de qualification ne reste actif.
-* Vérifie l’état des Workflows de qualification.
-* Supprime uniquement les ressources Docker temporaires créées pour C4-Q.
-* Préserve les preuves et résultats assainis.
-* Donne-moi les instructions pour arrêter le tunnel DevEnv.
+Le Repair devra utiliser les preuves autoritatives de ProjectOrqSaga et du mapping.
 
-Ne supprime aucun historique Temporal existant.
+Il ne devra jamais rejouer automatiquement une création ambiguë.
 
-Documente les historiques de qualification qui subsistent conformément à la rétention du serveur.
+Ne corrige pas cette limitation pendant C5, mais conserve explicitement le besoin d’une nouvelle qualification réelle après l’implémentation du Repair.
 
-15. Non-régression
+15. Qualification PostgreSQL réelle
 
-Utilise C4 comme référence :
+Utilise PostgreSQL 18.4 sur des ressources temporaires strictement isolées.
+
+Teste au minimum :
+
+* Enqueue nominal.
+* Cohérence Saga/outbox.
+* Workflow ID déterministe.
+* Allocation de génération.
+* Utilisateur non autorisé.
+* Projet inexistant.
+* Projet supprimé.
+* Snapshot obsolète.
+* Demandes identiques concurrentes.
+* Demandes différentes concurrentes.
+* Allocation concurrente sans Saga préexistante.
+* Conflit avec une opération non résolue.
+* Blocage après UNKNOWN_OUTCOME.
+* Blocage après NEEDS_RECONCILIATION.
+* Répétition après succès.
+* Répétition après échec.
+* Retour à une ancienne configuration désirée.
+* Rollback après échec de création de l’outbox.
+* Absence de Saga isolée.
+* Absence d’outbox orpheline.
+* Perte simulée d’acquittement du commit.
+* Reprise après redémarrage du service.
+* Compatibilité avec les accès concurrents du Store C3d.
+* Absence d’appel Temporal ou Orq.
+* Fonctionnement sans SDK Temporal.
+
+Pour les tests de concurrence, utilise réellement plusieurs sessions indépendantes et des mécanismes de synchronisation permettant d’observer les résultats.
+
+Ne te limite pas à des mocks de transactions ou de contraintes SQL.
+
+16. Non-régression
+
+Utilise C4 comme référence applicative :
 
 * 451 cas JUnit.
 * 424 réussites JUnit.
 * 395 tests pytest réussis.
 * 29 sous-tests réussis.
 * 27 échecs historiques identiques.
+* PostgreSQL 18.4.
 * Head Alembic 0004_orq_saga_outbox.
-* 32 tables applicatives.
+* 32 tables.
+* 17 triggers.
+* 4 fonctions.
+* 85 index.
+* 390 contraintes applicatives.
 
-Vérifie l’intégrité de C4 et des espaces précédents.
+Exécute :
 
-Exécute les tests ciblés et les tests de non-régression pertinents.
+* Les tests ciblés C5.
+* Les tests PostgreSQL réels.
+* Les tests cumulés C1 à C5.
+* La suite complète.
+* La compilation Python.
+* pip check.
+* Les vérifications pertinentes sans SDK Temporal.
 
-Si du code de test permanent est ajouté, exécute également la suite complète.
+Compare les node IDs, traces normalisées et signatures des échecs historiques.
 
-Distingue clairement :
+Vérifie l’intégrité des garanties C3a à C4.
 
-* Tests unitaires.
-* Tests PostgreSQL réels.
-* Tests Temporal réels.
-* Appels Orq simulés.
-* Replay hors ligne.
-* Scénarios d’interruption réellement reproduits.
-* Scénarios uniquement simulés.
+Ne modifie aucun test historique uniquement pour obtenir artificiellement une suite verte.
 
-Ne présente aucune garantie exactly-once distribuée comme acquise.
+17. Limitation du périmètre
 
-16. Contraintes impératives
+C5 doit rester consacrée à l’allocation de génération et à l’enqueue transactionnel.
 
-* Aucun commit, branche, push, merge, rebase ou création de MR.
+Ne commence pas :
+
+* C6 : dispatcher Temporal.
+* C7 : Repair backend.
+* C8 : frontend.
+* C9 : résolution privilégiée.
+* Provisioning des autres ressources Orq.
+
+Ne crée aucun nouvel endpoint public.
+
+Ne développe aucune seconde logique d’orchestration.
+
+Aucun Workflow réel ne doit être lancé.
+
+18. Contraintes impératives
+
+* Aucune opération Git ou GitLab.
+* Aucun déploiement.
 * Aucun changement Kubernetes.
-* Aucune commande Kubernetes exécutée par Software Companion.
-* Aucun déploiement LMC.
-* Aucun appel au véritable service Orq.ai.
+* Aucun appel distant Temporal ou Orq.
 * Aucun serveur Temporal local.
-* Aucune installation Temporal CLI.
+* Aucune installation de Temporal CLI.
+* Aucun Worker connecté.
 * Aucune modification des ressources Docker existantes.
+* Seules les ressources Docker temporaires strictement isolées nécessaires aux tests sont autorisées.
 * Aucune modification de Docker Compose.
-* Aucune modification des Dockerfiles.
-* Aucune modification des migrations applicatives.
+* Aucune modification des Dockerfiles existants.
+* Aucune modification des migrations existantes.
 * Aucune modification du pont Alembic.
 * Aucune modification des scripts 01/02/03.
 * Aucune modification des configurations VS Code.
-* Aucun changement de la procédure habituelle de lancement du LMC.
-* Aucun nouveau développement C5, C6, C7, C8 ou C9.
+* Préservation intégrale des espaces précédents.
 
-La qualification reste strictement isolée et ne doit avoir aucun impact sur les utilisateurs ou services existants.
+La procédure habituelle de lancement du LMC doit rester strictement inchangée.
 
-17. Documentation et restitution
+19. Documentation et restitution
 
 Crée une documentation technique en anglais :
 
-documentation/C4Q_TEMPORAL_REAL_QUALIFICATION.md
+documentation/C5_TRANSACTIONAL_PROVISIONING_ENQUEUE.md
 
 Mets à jour LMC_WORKSPACE_INDEX.md et la roadmap de convergence.
 
-Documente les commandes utilisées, les scénarios exécutés, les résultats réels, les preuves, les ressources temporaires et leur nettoyage.
+Pour chaque fichier créé ou modifié, documente son rôle, les composants réutilisés, le comportement avant/après, les décisions techniques et leur justification.
 
 Présente-moi en français :
 
-* Les étapes effectivement réalisées.
-* La connexion réelle à Temporal.
-* Les résultats de chaque Workflow.
-* Les Activities observées dans les historiques.
-* Les transitions PostgreSQL.
-* Le nombre de POST simulés par opération.
-* Les résultats du redémarrage du Worker.
-* Les résultats du replay.
-* Les éventuelles anomalies.
-* Les limites restantes.
-* Les prérequis pour C5.
+* Le fonctionnement de l’enqueue.
+* Les fichiers créés ou modifiés.
+* La politique d’autorisation retenue.
+* La stratégie d’allocation des générations.
+* L’ordre de verrouillage.
+* Les garanties transactionnelles réellement vérifiées.
+* Les résultats des tests de concurrence.
+* La politique de déduplication.
+* Les résultats de non-régression.
+* Les limitations et décisions restantes.
+* Les prérequis nécessaires à C6.
 
-Les limitations liées à la version Python cible, à l’audit CVE, aux migrations historiques et aux futures politiques métier restent ouvertes tant qu’elles ne sont pas réellement traitées.
+Conserve toutes les limitations historiques encore ouvertes, notamment Python cible, audit CVE, migrations historiques, pont Alembic, retry manuel, hard delete et résolution privilégiée.
 
-Commence par relire le protocole existant et préparer les prérequis locaux.
+Notre objectif reste d’atteindre rapidement la parité fonctionnelle complète avec le Mock LMC depuis l’interface du véritable LMC lancé localement, en réutilisant les mécanismes existants de Repair, avant tout déploiement en préproduction.
 
-Indique-moi ensuite les éventuelles commandes que je dois exécuter depuis le DevEnv pour rétablir la connexion Temporal.
-
-Tu peux poursuivre la qualification dans ce périmètre une fois les préconditions d’isolation et d’autorisation vérifiées.
-
-Ne commence pas C5 sans mon accord.
+Tu peux commencer C5 dans ce périmètre. Ne commence pas C6 sans mon accord.
