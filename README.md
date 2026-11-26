@@ -1,33 +1,33 @@
-Je valide C3d sur son périmètre de qualification locale.
+Je valide C3e sur son périmètre de qualification locale.
 
 Notre nouvelle référence est désormais :
 
-* 384 cas JUnit.
-* 357 cas JUnit réussis.
-* 328 tests pytest réussis.
+* 419 cas JUnit.
+* 392 cas JUnit réussis.
+* 363 tests pytest réussis.
 * 29 sous-tests réussis.
 * 27 échecs historiques strictement identiques.
-* 38 tests ciblés C3d réussis.
-* 27 scénarios PostgreSQL réels réussis.
+* 35 tests ciblés C3e réussis.
+* 12 tests d’intégration Activities/PostgreSQL réels réussis.
 * Aucune nouvelle régression.
 * PostgreSQL 18.4.
-* 32 tables, 17 triggers, 4 fonctions, 85 index et 390 contraintes applicatives.
 * Head Alembic unique : 0004_orq_saga_outbox.
-* Aucune modification du schéma C2.
+* 32 tables, 17 triggers, 4 fonctions, 85 index et 390 contraintes.
+* Aucune modification du schéma.
 
-Nous pouvons maintenant commencer C3e — Concrete Provisioning Activities V2.
+La phase de convergence et de portage C0 à C3e est désormais terminée. Tout le code réutilisable développé jusqu’à MR7 est porté ou explicitement supersédé.
 
-Cette étape constitue le dernier portage du travail précédemment développé jusqu’à MR7.
+Nous pouvons commencer C4 — Optional Temporal Provisioning Worker V2.
 
 1. Espace de travail
 
 Crée un nouvel espace local isolé :
 
-/workspace/LEA_Workspace/lcc-c3e-provisioning-activities-v2
+/workspace/LEA_Workspace/lcc-c4-temporal-provisioning-worker
 
 Utilise comme base cumulative :
 
-/workspace/LEA_Workspace/lcc-c3d-postgresql-state-store
+/workspace/LEA_Workspace/lcc-c3e-provisioning-activities-v2
 
 Notre référence LMC originale reste :
 
@@ -37,471 +37,422 @@ Préserve intégralement tous les espaces précédents.
 
 Ne copie aucune métadonnée Git, aucun credential, fichier .env, environnement virtuel ou cache inutile.
 
-2. Réutilisation de MR7
-
-Notre objectif est de porter les Activities V2 déjà développées et qualifiées dans MR7, en les raccordant aux composants désormais disponibles dans C3a, C3c et C3d.
+2. Documentation et travail existant
 
 Relis notamment :
 
-* lcc-mr7-postgresql-state-store
-* lcc-mr6-provisioning-contracts
-* lcc-t3-orq-project-workflow
-* POSTGRESQL_STATE_STORE_MR7.md
-* C2_ORQ_SAGA_OUTBOX.md
-* C3A_ORQ_PROJECT_RECONCILIATION.md
+* TEMPORAL_T2_FOUNDATION.md
 * C3B_TEMPORAL_FOUNDATION.md
 * C3C_PROVISIONING_WORKFLOW_V2.md
 * C3D_POSTGRESQL_STATE_STORE.md
+* C3E_PROVISIONING_ACTIVITIES_V2.md
 * LMC_SAGA_REPAIR_CONVERGENCE_ANALYSIS.md
 * LMC_WORKSPACE_INDEX.md
 * La roadmap de convergence.
+* Les composants Worker historiques disponibles dans T2 et T3.
 
-Porte principalement le fichier historique :
+Réutilise les mécanismes existants de configuration, de connexion, de validation et d’arrêt gracieux.
 
-backend/app/orq_project_activities_v2.py
+Ne redéveloppe aucune fondation Temporal déjà disponible.
 
-Ainsi que les tests et interfaces strictement nécessaires à son fonctionnement.
+3. Objectif de C4
 
-Vérifie les chemins exacts dans les espaces historiques.
+Implémente un Worker métier Temporal V2 :
 
-Réutilise au maximum le code existant.
+* Séparé du backend FastAPI.
+* Optionnel.
+* Désactivé par défaut.
+* Exécutable explicitement depuis le Dev Container.
+* Configurable.
+* Testable avec des dépendances injectées.
+* Compatible avec le Store PostgreSQL et les Activities existantes.
+* Utilisant une Task Queue métier dédiée.
 
-Ne redéveloppe ni le Store, ni la réconciliation, ni le Workflow.
+Ce Worker doit être capable d’exécuter le Workflow V2 lorsque celui-ci sera ultérieurement déclenché par les composants applicatifs.
 
-3. Architecture à respecter
+Il ne doit démarrer lui-même aucun Workflow.
 
-Les responsabilités sont désormais les suivantes :
+4. Enregistrement du Workflow et des Activities
 
-* C3a : logique de réconciliation et gateway Orq.
-* C3b : fondation Temporal optionnelle.
-* C3c : contrats et Workflow déterministe V2.
-* C3d : état désiré canonique et Store PostgreSQL.
-* C3e : raccordement des Activities concrètes aux composants précédents.
+Enregistre exclusivement le Workflow de provisioning V2 développé dans C3c et les quatre Activities concrètes de C3e :
 
-Les Activities doivent constituer la couche d’exécution reliant les contrats du Workflow aux services métier.
+* lmc.orq_project.load_context.v2
+* lmc.orq_project.reconcile_once.v2
+* lmc.orq_project.persist_mapping.v2
+* lmc.orq_project.record_outcome.v2
 
-Elles ne doivent pas introduire une seconde logique de réconciliation ou de persistance.
+Vérifie leurs noms exacts et leurs signatures dans le code source.
+
+Préserve strictement la compatibilité des contrats.
+
+N’enregistre pas :
+
+* Le Workflow V1 historique.
+* Le Workflow no-op de qualification T2.
+* Les Workflows de traitement de documents.
+* Des Activities historiques obsolètes.
+* Des Workflows ou Activities sans rapport avec le provisioning Orq.
+
+Ne modifie ni le Workflow V2 ni ses contrats sans incompatibilité démontrée.
+
+5. Composition des dépendances
+
+Le Worker doit assembler les composants déjà disponibles :
+
+* Client Temporal C3b.
+* Workflow V2 C3c.
+* Store PostgreSQL C3d.
+* Gateway Orq C3a.
+* Activities V2 C3e.
+
+Réutilise les mécanismes existants du LMC concernant les sessions PostgreSQL, la configuration et les accès aux services.
+
+Ne duplique aucune logique métier.
+
+Le Worker doit posséder une composition de dépendances explicite permettant de remplacer le gateway Orq par un gateway factice pendant les tests.
+
+Vérifie la compatibilité entre la nature synchrone ou asynchrone des Activities, les sessions SQLAlchemy et le modèle d’exécution du SDK Temporal.
+
+Aucune session SQLAlchemy ne doit être partagée de manière non sûre entre plusieurs Activities concurrentes.
+
+Aucun appel bloquant ne doit immobiliser indéfiniment la boucle événementielle du Worker.
+
+6. Configuration et activation
+
+Réutilise la configuration optionnelle C3b.
+
+Préserve notamment :
+
+* Endpoint SDK/gRPC configurable.
+* Namespace configurable.
+* Task Queue configurable.
+* Identité Worker configurable.
+* Configuration TLS/authentification existante.
+* Deadlines et timeouts.
+* Chargement optionnel du SDK.
+
+Prévois une activation explicite du Worker métier.
+
+Par défaut, aucune connexion à Temporal, PostgreSQL ou Orq ne doit être initiée par le Worker désactivé.
+
+Ne code en dur aucune adresse interne, valeur de test, identité ou credential.
+
+En cas de configuration indispensable manquante ou incohérente, le Worker doit refuser de démarrer avec une erreur contrôlée et assainie.
+
+Ne modifie pas les dépendances normales du LMC.
+
+7. Task Queue et isolation
+
+Utilise une Task Queue exclusivement dédiée au provisioning Orq V2.
+
+Vérifie que les mécanismes historiques de validation des queues restent applicables.
+
+Ne réutilise jamais :
+
+* La queue de traitement de documents.
+* La queue no-op historique.
+* Une queue appartenant à un autre service.
+
+Distingue clairement la convention de nommage, le contrôle de configuration et une éventuelle garantie d’exclusivité distribuée.
+
+Ne revendique pas une exclusivité que le SDK ou notre mécanisme d’ownership ne garantit pas réellement.
+
+Documente la stratégie de nommage et les protections contre une connexion accidentelle à un environnement ou une queue incorrecte.
+
+8. Cycle de vie du Worker
+
+Implémente un cycle de vie autonome comprenant :
+
+* Validation de la configuration.
+* Initialisation explicite des dépendances.
+* Création du client Temporal.
+* Enregistrement du Workflow et des Activities.
+* Démarrage de la boucle Worker.
+* Gestion des erreurs d’initialisation.
+* Gestion de SIGINT et SIGTERM.
+* Arrêt gracieux.
+* Libération des ressources.
+
+Réutilise les mécanismes historiques lorsque cela est pertinent.
+
+Prévois des délais d’arrêt bornés et cohérents avec les timeouts des Activities.
+
+Vérifie notamment qu’une interruption pendant une Activity mutative ne permet pas de contourner les protections de réservation durable.
+
+Un arrêt gracieux ne doit pas être présenté comme une garantie que toutes les mutations distantes ont nécessairement terminé.
+
+Ne déclenche aucune compensation DELETE lors de l’arrêt du Worker.
+
+9. Préservation du lancement standard du LMC
+
+Cette contrainte est impérative.
+
+La manière habituelle de lancer le LMC doit rester strictement inchangée.
+
+Ne modifie pas :
+
+* Les scripts 01, 02 et 03.
+* Docker Compose.
+* Les Dockerfiles existants.
+* Les configurations de lancement VS Code.
+* Le lifespan FastAPI.
+* Les mécanismes actuels de démarrage du backend et du frontend.
+* Les configurations Kubernetes.
+
+Le Worker doit être lancé séparément et uniquement lorsque le provisioning est explicitement nécessaire.
+
+Le LMC doit continuer à fonctionner normalement :
+
+* Sans SDK Temporal installé.
+* Sans Worker.
+* Sans connexion Temporal.
+* Sans configuration Orq.
+
+Documente la commande permettant de lancer manuellement le Worker depuis le Dev Container, mais ne l’exécute pas contre Temporal préproduction pendant C4.
+
+10. Préservation des garanties métier
+
+Le Worker doit conserver intégralement les garanties C3a à C3e :
+
+* Réservation durable commitée avant POST.
+* Libération des verrous SQL avant appel réseau.
+* CAS et protection des générations.
+* mutation_attempted irréversible.
+* Aucun retry mutatif automatique.
+* Aucun nouveau POST après une mutation ambiguë.
+* Aucun DELETE automatique.
+* Distinction candidat/identité confirmée.
+* Persistance du résultat confirmé avant mapping.
+* Finalisation idempotente lorsque les préconditions le permettent.
+* Conservation des preuves après interruption.
+* UNKNOWN_OUTCOME et NEEDS_RECONCILIATION.
+
+Ne déplace pas ces responsabilités vers le Worker.
+
+Le Worker constitue uniquement la couche d’exécution et de composition.
 
 La source autoritative du statut métier reste ProjectOrqSaga.
 
 La source autoritative de l’identité distante reste orq_project_mappings.
 
-L’outbox reste responsable de la livraison des demandes de démarrage Temporal.
+11. Limite identifiée dans C3e
 
-Ne recrée pas orq_project_provisioning_operations.
+C3e a identifié qu’une perte d’acquittement après confirmation peut retourner un résultat conservateur alors qu’un état LOCAL_PERSISTENCE plus informatif existe déjà en base.
 
-Aucune double écriture.
+Conserve explicitement cette limitation.
 
-4. Les quatre Activities V2
+Vérifie que le Worker n’introduit aucune transition supplémentaire susceptible d’écraser cet état autoritatif.
 
-Porte les quatre Activities historiques correspondant aux responsabilités suivantes :
+Inscris dans les critères de C7 que le futur Repair devra s’appuyer sur les preuves et statuts persistés dans ProjectOrqSaga, plutôt que sur le seul résultat du Workflow.
 
-1. Chargement et validation du contexte.
-2. Réconciliation du projet Orq.
-3. Persistance du mapping vérifié.
-4. Finalisation de l’opération.
+Ne développe pas encore le Repair et ne modifie pas silencieusement les contrats pour résoudre cette limitation.
 
-Conserve leurs noms contractuels, signatures, types d’entrée et de sortie et leur compatibilité avec le Workflow V2 de C3c.
+12. Sécurité
 
-Vérifie les noms exacts dans le code existant.
+Aucun secret ou credential ne doit être présent dans :
 
-Utilise directement les méthodes du Store C3d et la fonction reconcile_orq_project() de C3a.
+* Les paramètres du Workflow.
+* Les résultats des Activities.
+* Les logs du Worker.
+* Les messages d’erreur.
+* Les futures données d’historique Temporal.
+* La documentation.
 
-Les Activities doivent rester injectables et testables indépendamment d’un serveur Temporal.
+Ne journalise pas les configurations complètes contenant potentiellement des credentials.
 
-Ne crée pas encore de Worker exécutable.
+Réutilise les mécanismes existants de sanitization.
 
-5. Activity de chargement du contexte
+N’utilise pas le helper Orq historique susceptible de déclencher des suppressions automatiques.
 
-Réutilise le Store afin de vérifier :
+Ne désactive aucune vérification TLS.
 
-* operation_ref.
-* project_ref.
-* Identité interne du projet.
-* Génération.
-* Version du contrat V2.
-* Mode.
-* Version et hash désirés.
-* Statut de l’opération.
-* Mapping existant.
-* Éventuelles preuves d’une mutation antérieure.
+Ne contourne aucune restriction réseau ou de sécurité.
 
-Le contexte chargé ne doit jamais être considéré comme une autorisation permanente de mutation.
+13. Tests locaux C4
 
-La validation autoritative doit être répétée au moment de la réservation durable.
+Qualifie le Worker avec les composants et clients factices appropriés.
 
-Rejette les contextes obsolètes, incohérents ou non autorisés par les règles métier existantes.
+Teste notamment :
 
-Préserve le traitement STALE_CONTEXT.
+* Import du LMC sans SDK Temporal.
+* Worker désactivé par défaut.
+* Absence de connexion réseau lorsque désactivé.
+* Configuration valide et invalide.
+* SDK optionnel absent.
+* Échec de connexion Temporal.
+* Échec d’initialisation des dépendances.
+* Enregistrement exact du Workflow V2.
+* Enregistrement exact des quatre Activities.
+* Absence de Workflow ou Activity legacy.
+* Validation de la Task Queue.
+* Injection du gateway Orq factice.
+* Initialisation et fermeture des ressources.
+* Arrêt gracieux.
+* Annulation et propagation contrôlée des erreurs.
+* Sanitization des exceptions.
+* Absence de démarrage automatique d’un Workflow.
+* Absence d’appel distant Orq ou Temporal.
+* Préservation du comportement FastAPI.
 
-Ne transporte aucun credential ni payload sensible dans les résultats destinés à Temporal.
+Vérifie que le SDK accepte réellement les définitions du Workflow et des Activities.
 
-6. Activity de réconciliation
+Distingue les tests utilisant le véritable SDK des tests utilisant un Worker ou un client factice.
 
-Réutilise directement la logique C3a.
+N’assimile pas une validation des définitions à une exécution réelle sur Temporal.
 
-Préserve notamment :
+Utilise des ressources PostgreSQL temporaires strictement isolées uniquement lorsque nécessaire.
 
-* Aucune adoption uniquement sur la base du nom.
-* Réutilisation uniquement via une identité distante vérifiée.
-* Distinction entre candidat et identité confirmée.
-* Validation stricte des réponses Orq.
-* Absence de retry automatique de transport mutatif.
-* Absence de DELETE ou compensation automatique.
-* Conservation de UNKNOWN_OUTCOME.
+14. Préparation de la qualification réelle Temporal
 
-Les lectures et vérifications distantes doivent rester distinctes du chemin mutatif.
+Nous avons déjà qualifié Temporal préproduction dans T2 :
 
-Ne réserve pas une mutation inutilement lorsque la réconciliation peut aboutir uniquement par des lectures ou par la réutilisation d’un mapping vérifié.
+* SDK Python temporalio 1.18.2.
+* Connexion au serveur.
+* Santé et visibilité du namespace default validées.
+* Connexion depuis le Dev Container via un tunnel établi depuis le DevEnv.
+* Task Queue de test dédiée.
+* Workflow LmcTemporalNoop réellement exécuté avec succès.
 
-Utilise des gateways factices pour tous les tests impliquant Orq.
+Ne recommence pas toute la recherche réseau ou Kubernetes.
 
-7. Réservation durable avant POST
+Prépare un protocole distinct de qualification réelle du Worker V2, sans l’exécuter pendant C4.
 
-Ce point constitue le principal critère de validation de C3e.
+Ce protocole devra prévoir :
 
-Raccorde effectivement le chemin create_project() à la réservation durable C3d.
+* Revalidation de l’endpoint et du namespace autorisé.
+* Réutilisation du tunnel précédemment qualifié.
+* Task Queue de test unique et dédiée.
+* Worker local dans le Dev Container.
+* PostgreSQL 18.4 temporaire et isolé.
+* Opération de test identifiable et préalablement persistée.
+* Gateway Orq exclusivement factice.
+* Impossibilité de déclencher accidentellement un véritable appel Orq.
+* Exécution d’un véritable Workflow V2.
+* Vérification des quatre Activities dans l’historique Temporal.
+* Vérification des transitions ProjectOrqSaga.
+* Vérification du mapping final.
+* Récupération d’un historique assaini pour le replay.
+* Arrêt du Worker et nettoyage des seules ressources locales créées pour le test.
 
-Avant tout POST mutatif :
+Décris également un scénario de redémarrage contrôlé permettant de vérifier la reprise du Workflow sans second POST simulé.
 
-* Revalider le contexte autoritatif.
-* Recalculer le hash désiré selon les mécanismes C3d.
-* Vérifier l’éligibilité de l’opération.
-* Effectuer la réservation CAS.
-* Persister mutation_attempted=True.
-* Confirmer le commit de la transaction.
-* Libérer les verrous et la session SQL.
+Ne développe pas de second mécanisme applicatif d’enqueue pour les besoins de cette qualification.
 
-L’appel HTTP mutatif ne doit pouvoir être envoyé qu’après confirmation effective de cette réservation.
+Si un harness de test est nécessaire, propose son périmètre et son isolation.
 
-Un refus de réservation, un conflit CAS, un rollback ou une incertitude sur le commit doivent empêcher l’envoi du POST.
+Je réaliserai moi-même les éventuelles commandes Kubernetes depuis le DevEnv.
 
-Aucune transaction SQL ne doit rester ouverte pendant les appels réseau.
-
-Vérifie qu’aucun chemin alternatif de création ne peut contourner cette protection.
-
-Ne considère pas le simple état IN_PROGRESS ou mutation_attempted=True comme une autorisation suffisante pour rejouer une création.
-
-Une Activity redélivrée après interruption ne doit jamais réutiliser une ancienne réservation pour envoyer un second POST.
-
-8. Retry et interruptions
-
-Conserve les garanties du Workflow V2 :
-
-* maximum_attempts=1 pour l’Activity mutative.
-* Retry logique uniquement pour RETRYABLE avec mutation_attempted=False.
-* Aucun retry de transport mutatif.
-* Aucun retry automatique après une mutation potentielle.
-
-Teste les différentes fenêtres d’interruption :
-
-1. Avant la réservation.
-2. Pendant la transaction de réservation.
-3. Après le commit mais avant le POST.
-4. Pendant le POST.
-5. Après la mutation distante mais avant la persistance du candidat.
-6. Après persistance du candidat mais avant vérification complète.
-7. Après persistance de l’identité confirmée mais avant le mapping.
-8. Après persistance du mapping mais avant finalisation.
-9. Après finalisation mais avant retour du résultat de l’Activity.
-
-Pour chaque scénario, documente les preuves persistées, le comportement d’une reprise et le nombre d’appels mutatifs effectivement observés.
-
-Un crash après réservation mais avant POST peut conduire à un état conservateur nécessitant une réconciliation.
-
-Ne cherche pas à optimiser cette situation au prix d’un risque de double création.
-
-Ne revendique aucune garantie exactly-once entre PostgreSQL et Orq.
-
-9. Persistance du candidat et du résultat confirmé
-
-Réutilise les mécanismes CAS C3d.
-
-Lorsqu’un résultat candidat est disponible, conserve-le conformément aux règles existantes.
-
-Un candidat ne doit jamais être considéré comme un mapping autoritatif.
-
-Lorsqu’une identité Orq est vérifiée, persiste durablement :
-
-* L’identifiant Orq confirmé.
-* La clé projet Orq vérifiée.
-* L’action de réconciliation.
-* Les informations de résultat nécessaires.
-
-La persistance du résultat confirmé doit intervenir avant la finalisation du mapping.
-
-En cas de perte du résultat avant sa persistance, conserve au minimum la preuve de réservation durable et l’état incertain approprié.
-
-En cas d’échec du mapping après confirmation de l’identité distante, conserve le résultat dans ProjectOrqSaga et utilise NEEDS_RECONCILIATION avec LOCAL_PERSISTENCE.
-
-Ne recrée jamais automatiquement le projet distant pour résoudre un problème de persistance locale.
-
-10. Activity de persistance du mapping
-
-Utilise exclusivement les mécanismes du Store C3d.
-
-Vérifie :
-
-* L’identité de l’opération.
-* La génération.
-* La version et le hash.
-* L’identité distante confirmée.
-* Les préconditions CAS.
-* La cohérence avec un éventuel mapping existant.
-
-Une ancienne génération ou un résultat tardif ne doit jamais écraser un mapping plus récent.
-
-La répétition d’une persistance strictement identique doit rester idempotente lorsque les préconditions le permettent.
-
-Cette Activity ne doit déclencher aucun appel mutatif Orq.
-
-11. Activity de finalisation
-
-Réutilise les transitions autorisées par ProjectOrqSaga.
-
-Préserve les états :
-
-* PENDING.
-* IN_PROGRESS.
-* SUCCEEDED.
-* FAILED.
-* NEEDS_RECONCILIATION.
-
-Respecte les classifications établies dans C3c et C3d, notamment :
-
-* STALE_CONTEXT.
-* UNKNOWN_OUTCOME.
-* ACTIVITY_OUTCOME_LOST.
-* LOCAL_PERSISTENCE.
-* CONFLICT.
-
-Ne transforme jamais une mutation potentiellement exécutée en simple échec autorisant implicitement une nouvelle création.
-
-Une finalisation répétée et cohérente doit rester idempotente.
-
-Une finalisation tardive ou contradictoire doit être rejetée.
-
-La finalisation ne doit jamais supprimer les opérations historiques.
-
-12. Diagnostics et sécurité
-
-C3d indique que les diagnostics textuels ne sont pas écrits par le Store et que leur sanitization appartient aux futures couches.
-
-Prends cette limitation en compte pour les Activities.
-
-Les erreurs retournées ou persistées par les Activities doivent utiliser les codes et classifications contrôlés déjà disponibles.
-
-Réutilise les champs de support existants lorsque cela est compatible avec les contrats.
-
-Aucun secret, token, clé API, credential, header HTTP, payload arbitraire, réponse SDK complète ou message d’exception brut ne doit être exposé :
-
-* Dans les résultats des Activities.
-* Dans les exceptions destinées à Temporal.
-* Dans les logs.
-* Dans ProjectOrqSaga.
-* Dans les futurs historiques Temporal.
-
-Teste explicitement les erreurs contenant des données sensibles synthétiques.
-
-Ne développe pas encore un nouveau système d’audit ou de support.
-
-Documente les garanties de sanitization effectivement implémentées et celles qui restent à traiter dans C7, C8 et C9.
-
-13. Temporal optionnel
-
-Préserve intégralement C3b.
-
-* Temporal reste désactivé par défaut.
-* Le SDK reste optionnel.
-* Les dépendances normales du LMC restent inchangées.
-* Aucun Worker ne démarre automatiquement.
-* Aucun import des Activities depuis le démarrage standard FastAPI ne doit rendre Temporal obligatoire.
-* Aucun couplage au lifespan FastAPI.
-
-Vérifie les imports et le fonctionnement normal du LMC sans SDK Temporal installé.
-
-Les composants nécessitant explicitement le SDK doivent rester isolés.
-
-La création et l’enregistrement du Worker métier appartiennent à C4.
-
-14. Qualification des Activities
-
-Réutilise les tests historiques MR7 et complète-les lorsque nécessaire pour vérifier le raccordement effectif des composants.
-
-Utilise notamment :
-
-* Les contrats réels C3c.
-* Le Store réel C3d.
-* PostgreSQL 18.4 réel.
-* La réconciliation réelle C3a.
-* Des gateways HTTP factices ou des transports simulés.
-
-Vérifie au minimum :
-
-* Création nominale simulée.
-* Réutilisation d’un mapping valide sans POST.
-* Rejet d’un contexte obsolète.
-* Collision ou incohérence d’identité.
-* Refus de réservation.
-* Concurrence entre deux exécutions.
-* Un seul POST observé lorsqu’une création est autorisée.
-* Commit observable depuis une session indépendante avant le POST.
-* Absence de verrou SQL pendant le POST simulé.
-* Absence de POST après échec du commit.
-* Redélivrance d’une Activity après réservation.
-* Timeout après mutation potentielle.
-* Perte du résultat.
-* Persistance et promotion du candidat.
-* Résultat confirmé conservé malgré un échec de mapping.
-* Finalisation idempotente.
-* Résultat tardif.
-* Ancienne génération.
-* Conservation de UNKNOWN_OUTCOME après redémarrage.
-* Sanitization des erreurs.
-* Absence de compensation DELETE.
-* Rejet du mode PLAN dans le chemin APPLY.
-
-Pour les scénarios critiques, évite de mocker simultanément le Store et la réconciliation : nous devons vérifier leur interaction réelle.
-
-Lorsque cela est possible, simule une interruption réelle entre deux transactions ou via une nouvelle instance du Store.
-
-Distingue les interruptions réellement reproduites des exceptions et pertes de résultat simulées.
-
-Aucun serveur Temporal local ou distant ne doit être utilisé pour cette étape.
-
-Aucun appel réel à Orq.ai.
+Ne démarre aucun Workflow distant avant validation explicite de ce protocole.
 
 15. Non-régression
 
-Utilise C3d comme nouvelle référence :
+Utilise C3e comme nouvelle référence :
 
-* 384 cas JUnit.
-* 357 réussites JUnit.
-* 328 tests pytest réussis.
+* 419 cas JUnit.
+* 392 réussites JUnit.
+* 363 tests pytest réussis.
 * 29 sous-tests réussis.
 * 27 échecs historiques identiques.
+* PostgreSQL 18.4.
 * Head Alembic 0004_orq_saga_outbox.
-* 32 tables applicatives.
-* 17 triggers.
-* 4 fonctions.
-* 85 index.
-* 390 contraintes applicatives.
+* 32 tables, 17 triggers, 4 fonctions, 85 index et 390 contraintes.
 
-Exécute :
+Exécute les tests ciblés C4, les tests cumulés pertinents et la suite complète.
 
-* Les tests ciblés des Activities.
-* Les tests d’intégration PostgreSQL réels.
-* Les tests cumulés C1 à C3e.
-* La suite complète.
-* La compilation Python.
+Compare les node IDs, traces normalisées et signatures des échecs historiques avec C3e.
+
+Vérifie également :
+
+* Compilation Python.
 * pip check.
-* Les vérifications pertinentes sans SDK Temporal.
+* Fonctionnement sans SDK optionnel.
+* Intégrité des migrations.
+* Intégrité des modèles ORM.
+* Intégrité des composants C3a à C3e.
+* Absence de modification des mécanismes standards de lancement.
 
-Compare les node IDs, traces normalisées et signatures des échecs historiques avec C3d.
+Ne cherche pas à reproduire artificiellement un nombre attendu de nouveaux tests.
 
-Distingue les tests portés, adaptés et nouvellement ajoutés.
+16. Limites héritées
 
-Vérifie que le schéma SQL, les migrations et les modèles ORM restent inchangés.
+Conserve dans la roadmap :
 
-Aucune nouvelle migration Alembic n’est attendue.
-
-16. Décisions encore ouvertes
-
-Conserve explicitement les limitations précédemment identifiées :
-
-* Absence de compteur de version désirée indépendant.
-* Équipes Orq non gérées.
-* Politique de modification concurrente du projet.
-* Hard delete bloqué après opération.
-* Retry manuel à configuration identique.
-* project_ref encore mutable en base.
-* Taxonomie d’audit.
-* Résolution privilégiée de UNKNOWN_OUTCOME.
-* Qualification Python sur la version cible du LMC.
-* Audit CVE.
+* Qualification avec la version Python cible du LMC.
+* Audit CVE des dépendances.
 * Replay Temporal réel.
+* Qualification réelle du Worker métier.
 * Qualification du pont Alembic et de la procédure standard.
-* Compatibilité des migrations avec les bases historiques.
+* Compatibilité avec les bases historiques.
+* Politique de modification concurrente des projets.
+* Hard delete.
+* Retry manuel à configuration identique.
+* Résolution privilégiée de UNKNOWN_OUTCOME.
+* Taxonomie d’audit.
 
-Documente notamment l’ordre de verrouillage du Store C3d afin que les futurs composants C5 et C6 restent compatibles et n’introduisent pas d’ordre de verrouillage contradictoire.
-
-Ne résous pas silencieusement ces décisions dans C3e.
+Ne résous pas silencieusement ces décisions dans C4.
 
 17. Limitation du périmètre
 
-C3e doit rester strictement consacrée au portage et au raccordement des Activities V2.
+C4 doit rester une micro-MR exclusivement consacrée au Worker métier V2.
 
 Ne commence pas :
 
-* C4 : Worker métier.
 * C5 : allocation de génération et enqueue transactionnel.
 * C6 : dispatcher Temporal.
 * C7 : Repair backend.
 * C8 : frontend.
 * C9 : résolution privilégiée.
-* Provisioning réel Orq.
 * Provisioning des autres ressources Orq.
 
-N’active aucun comportement métier dans le LMC existant.
+Ne crée aucun endpoint applicatif supplémentaire.
+
+Ne déclenche aucun Workflow réel.
+
+Aucune mutation distante Orq ne doit être effectuée.
 
 18. Contraintes impératives
 
-* Micro-MR minimale et facilement explicable.
-* Réutilisation maximale du travail existant.
 * Aucune opération Git ou GitLab.
-* Aucun changement Kubernetes.
 * Aucun déploiement.
-* Aucun appel distant Orq ou Temporal.
+* Aucune commande ou modification Kubernetes.
+* Aucun appel distant Temporal ou Orq.
 * Aucun serveur Temporal local.
-* Aucun Worker connecté.
+* Aucune installation de Temporal CLI.
 * Aucune modification des conteneurs, volumes, réseaux ou bases existants.
-* Seules les ressources Docker temporaires strictement isolées nécessaires aux tests sont autorisées.
+* Seules les ressources locales temporaires et isolées nécessaires aux tests sont autorisées.
 * Aucune modification de Docker Compose.
-* Aucune modification des migrations existantes.
-* Aucune modification des scripts 01, 02 et 03.
-* Aucune modification des configurations VS Code.
-* Aucune modification du pont Alembic.
+* Aucune modification des migrations ou du pont Alembic.
+* Aucune modification des scripts 01/02/03.
+* Aucune modification des configurations standards de lancement.
 * Préservation intégrale de tous les espaces précédents.
-
-La procédure habituelle de lancement du LMC doit rester strictement inchangée.
-
-Temporal et Orq.ai doivent rester optionnels.
 
 19. Documentation et restitution
 
-Crée une documentation technique dédiée en anglais :
+Crée une documentation technique en anglais :
 
-documentation/C3E_PROVISIONING_ACTIVITIES_V2.md
+documentation/C4_TEMPORAL_PROVISIONING_WORKER.md
+
+Crée également le protocole de qualification réelle :
+
+documentation/C4_TEMPORAL_REAL_QUALIFICATION_PLAN.md
 
 Mets à jour LMC_WORKSPACE_INDEX.md et la roadmap de convergence.
 
-Documente pour chaque fichier :
-
-* Son origine.
-* Son rôle.
-* Le comportement avant et après.
-* Le code directement réutilisé de MR7.
-* Les adaptations nécessaires.
-* Leur justification.
-* Les alternatives éventuelles.
+Pour chaque fichier créé ou modifié, documente son origine, son rôle, les composants réutilisés, le comportement avant/après, les choix techniques et leur justification.
 
 Présente-moi en français :
 
-* Les fichiers portés.
-* Le fonctionnement des quatre Activities.
-* Leur raccordement à C3a, C3c et C3d.
-* La preuve du commit avant POST.
-* Les résultats des scénarios de concurrence et d’interruption.
-* Les garanties réellement vérifiées.
+* Le fonctionnement du Worker.
+* Les fichiers créés ou modifiés.
+* Les mécanismes réutilisés.
+* La commande exacte de lancement manuel.
+* Les dépendances nécessaires.
+* Les garanties réellement testées.
 * Les résultats de non-régression.
-* Les limitations restantes.
+* Les limites restantes.
+* Le protocole proposé pour sa qualification réelle avec Temporal préproduction.
+* Les prérequis de C5.
 
-Réalise également un bilan synthétique du portage complet C0 à C3e.
+Notre objectif reste d’atteindre rapidement la parité fonctionnelle complète avec le Mock LMC depuis l’interface du véritable LMC lancé localement, en réutilisant le Repair existant, avant tout déploiement du LMC en préproduction.
 
-Identifie les éventuels composants historiques encore non portés et vérifie que nous disposons de toutes les fondations nécessaires pour commencer C4.
-
-Prépare uniquement une proposition de périmètre C4, concernant le Worker métier V2 séparé, optionnel et désactivé par défaut.
-
-Notre objectif reste d’atteindre rapidement la parité fonctionnelle complète avec le Mock LMC depuis l’interface du véritable LMC lancé localement, en réutilisant les mécanismes existants de support et de Repair, avant tout déploiement en préproduction.
-
-Tu peux commencer C3e dans ce périmètre. Ne commence pas C4 sans mon accord.
+Tu peux commencer C4 dans ce périmètre. Ne commence ni la qualification distante ni C5 sans mon accord.
