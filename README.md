@@ -1,430 +1,356 @@
-Je valide C7d sur son périmètre de qualification locale.
+Je valide C7e sur son périmètre de qualification locale.
 
-Le chantier spécifiquement consacré au Repair est désormais terminé côté backend.
+Nous venons d’atteindre un jalon important : l’intégration backend du provisioning du projet Orq est disponible, et C8 n’a pas encore commencé.
 
-Nous pouvons commencer C7e — Provisioning API and Operation Progress Integration.
+La session Software Companion actuelle est devenue très volumineuse. Nous allons donc changer de session avant C8 afin de réduire les consommations de contexte redondantes, tout en préservant la qualité du travail et l’ensemble des connaissances importantes.
 
-Cette étape est prioritaire. Nous devons désormais avancer rapidement vers le premier provisioning depuis l’interface du véritable LMC.
+Ta dernière mission dans cette session est de préparer une passation complète, fiable et optimisée pour la reprise.
 
-1. Espace de travail
+Ne commence pas C8.
 
-Utilise comme base applicative cumulative :
+1. Référence applicative actuelle
 
-/workspace/LEA_Workspace/lcc-c7d-minimal-repair-integration
-
-Crée un nouvel espace isolé :
+Le dernier workspace applicatif cumulatif est :
 
 /workspace/LEA_Workspace/lcc-c7e-provisioning-api-integration
 
-La référence LMC originale reste :
+La référence originale du LMC reste :
 
 /workspace/LEA_Workspace/lcc_last_version/lcc
 
-Préserve intégralement tous les espaces précédents.
+Préserve intégralement tous les workspaces précédents.
 
-Notre référence applicative C7d est désormais :
+Notre dernière référence de non-régression est :
 
-* 706 cas JUnit.
-* 679 réussites.
-* 650 tests pytest et 29 sous-tests réussis.
-* 27 échecs historiques strictement identiques après normalisation.
-* 126 tests ciblés réussis.
-* 74 tests PostgreSQL ciblés réussis.
-* 120 tests PostgreSQL cumulés réussis.
+* 689 tests pytest réussis.
+* 29 sous-tests réussis.
+* 27 échecs historiques strictement identiques.
+* JUnit brut : 716 cas, 689 réussites, 27 échecs.
+* Comptabilité incluant les sous-tests : 745 cas, 718 réussites, 27 échecs.
+* 96 tests ciblés réussis.
+* 77 tests PostgreSQL ciblés réussis.
+* 125 tests PostgreSQL cumulés réussis.
 * 7 tests SpiceDB réels réussis.
+* 52 tests ciblés réussis sans SDK Temporal.
 * PostgreSQL 18.4.
-* Head Alembic 0004_orq_saga_outbox.
-* Catalogue applicatif inchangé : 32 tables, 17 triggers, 4 fonctions, 85 index et 390 contraintes.
+* Head Alembic : 0004_orq_saga_outbox.
+* Catalogue applicatif : 32 tables, 17 triggers, 4 fonctions, 85 index et 390 contraintes.
 
-2. Documentation et références
+Vérifie ces informations contre les rapports et preuves disponibles.
 
-Relis notamment :
+2. Objectif de la passation
 
-* C5_TRANSACTIONAL_PROVISIONING_ENQUEUE.md
-* C6_TEMPORAL_OUTBOX_DISPATCHER.md
-* C6Q_TEMPORAL_REAL_QUALIFICATION.md
-* C7A_ORQ_RECOVERY_AND_REPAIR_ANALYSIS.md
-* C7B_ACTIVE_WORKFLOW_RECOVERY.md
-* C7BQ_ACTIVE_WORKFLOW_RECOVERY_QUALIFICATION.md
-* C7C_CLOSED_WORKFLOW_RECOVERY.md
-* C7D_MINIMAL_REPAIR_INTEGRATION.md
-* LMC_SAGA_REPAIR_CONVERGENCE_ANALYSIS.md
-* LMC_WORKSPACE_INDEX.md
-* La roadmap canonique.
+Une nouvelle session, sans accès à l’historique conversationnel actuel, doit pouvoir reprendre le projet avec une compréhension suffisante pour poursuivre le travail avec la même rigueur.
 
-Inspecte également les conventions REST, les routes projet, les modèles de réponse, les permissions et les mécanismes de polling déjà présents dans le véritable LMC.
+Elle doit retrouver :
 
-C7a était uniquement documentaire. L’intégration HTTP et operation-progress restent donc intégralement à réaliser.
-
-3. Objectif de C7e
-
-Permettre au véritable backend FastAPI du LMC :
-
-* De recevoir une demande de provisioning Orq.
-* De déléguer cette demande au service transactionnel C5.
-* De retourner une référence d’opération exploitable.
-* De suivre l’état de cette opération.
-* D’intégrer les statuts Orq dans operation-progress.
-* De fournir au futur frontend C8 toutes les informations nécessaires.
-
-Aucune nouvelle logique métier de provisioning ne doit être développée dans l’API.
-
-Nous raccordons les composants existants.
-
-4. Vision fonctionnelle
-
-Notre vision finale reste un provisioning persistant, explicitement déclenché par le Project Manager depuis le véritable LMC.
-
-À terme, un bouton de provisioning global devra permettre de provisionner toutes les ressources nécessaires à Engineering Companion :
-
-* Projet Orq.
-* Identities.
-* Clés API temporaires.
-* Budgets.
-* Modèles autorisés.
-* Prompts.
-* Agents spécialistes.
-* Orchestrateurs personnels.
-* Connecteurs.
-
-Les modifications ultérieures devront permettre une synchronisation incrémentale des ressources existantes, sans recréation inutile.
-
-Cependant, C7e concerne uniquement le provisioning du projet Orq, puisque les autres ressources ne sont pas encore raccordées.
-
-Ne présente pas la création du projet Orq comme un provisioning complet d’Engineering Companion.
-
-Ne développe pas les autres ressources pendant C7e.
-
-N’introduis aucun provisioning automatique à la création standard d’un projet, à la connexion ou à la déconnexion d’un utilisateur.
-
-5. Endpoint HTTP de provisioning
-
-Inspecte les conventions REST existantes.
-
-Une route telle que :
-
-POST /v1/projects/{project_ref}/provision-orq
-
-peut constituer une proposition, mais sélectionne le nom final selon les conventions du LMC.
-
-L’endpoint doit :
-
-* Utiliser l’identité authentifiée du LMC.
-* Vérifier la permission provision_orq_project via les mécanismes existants.
-* Respecter strictement le périmètre du projet.
-* Appeler directement le véritable service C5.
-* Restituer l’opération créée ou retrouvée.
-* Retourner une réponse asynchrone cohérente avec les conventions existantes.
-* Gérer les demandes identiques et conflictuelles selon les règles C5.
-* Refuser explicitement les modes non supportés.
-
-Une réponse HTTP 202 Accepted est une possibilité pour une nouvelle demande asynchrone, sous réserve de compatibilité avec les conventions du LMC.
-
-Distingue une demande acceptée d’un provisioning effectivement réussi.
-
-Ne duplique aucune logique de génération, snapshot, hash, audit, déduplication ou transaction.
-
-Le Dispatcher C6 reste l’unique responsable applicatif du démarrage des Workflows.
-
-L’endpoint ne doit effectuer aucun appel direct à Temporal, Orq ou Vault.
-
-L’indisponibilité de Temporal ne doit pas empêcher l’enregistrement durable d’une demande autorisée lorsque le provisioning est activé.
-
-6. Contrats API
-
-Définis des contrats minimaux, stables et adaptés au frontend.
-
-La réponse doit notamment permettre d’obtenir, lorsque pertinent :
-
-* project_ref.
-* operation_ref.
-* Statut métier.
-* Statut de livraison.
-* Indication de création ou de réutilisation de l’opération.
-* Diagnostic symbolique.
-* Référence de support.
-* Informations nécessaires au suivi.
-
-Réutilise les modèles existants autant que possible.
-
-Ne retourne aucun credential, token, secret, payload Temporal brut, snapshot sensible ou exception fournisseur.
-
-Le client ne doit pas pouvoir fournir arbitrairement l’identité de l’acteur, la génération, le hash ou les preuves de provisioning.
-
-Ces données restent sous le contrôle du backend.
-
-Le mode APPLY est actuellement le seul mode exécutable. PLAN reste à intégrer ultérieurement conformément à notre objectif de parité avec le Mock LMC.
-
-7. Intégration à operation-progress
-
-Enrichis :
-
-GET /v1/projects/{project_ref}/operation-progress
-
-avec une projection Orq compatible avec les réponses historiques.
-
-Réutilise le modèle de lecture développé pendant C7d.
-
-Ne crée pas de deuxième logique de diagnostic concurrente.
-
-La projection doit permettre au frontend de distinguer :
-
-* Projet jamais provisionné.
-* Provisioning désactivé.
-* Demande persistée.
-* Livraison en cours.
-* Livraison confirmée.
-* Exécution métier en cours.
-* Provisioning réussi.
-* Échec métier.
-* Échec de livraison.
-* Démarrage Temporal incertain.
-* LOCAL_PERSISTENCE.
-* UNKNOWN_OUTCOME.
-* Snapshot obsolète.
-* Conflit d’identité ou de mapping.
-* Intervention support éventuellement nécessaire.
-
-Ne présente que des états réellement démontrables depuis les données persistées.
-
-Une outbox STARTED ne prouve pas qu’un Worker est actuellement actif.
-
-Une Saga SUCCEEDED ne doit pas être dégradée uniquement parce que l’acquittement de livraison est incomplet.
-
-Conserve la distinction entre statut métier, statut de livraison et diagnostic.
-
-Préserve intégralement la compatibilité avec les Sagas Looker, Keycloak, SDA et les connecteurs.
-
-8. Suivi par operation_ref
-
-Le frontend doit pouvoir suivre précisément l’opération déclenchée, notamment après :
-
-* Un rafraîchissement de la page.
-* Une perte de réponse HTTP.
-* Une nouvelle demande identique.
-* Une modification concurrente.
-* Une nouvelle génération ultérieurement autorisée.
-
-Inspecte les mécanismes existants de suivi et de polling.
-
-Réutilise operation-progress si son contrat peut être enrichi proprement. N’introduis un endpoint de consultation supplémentaire que si cela est réellement nécessaire.
-
-Toute consultation par operation_ref doit vérifier l’appartenance de l’opération au projet concerné.
-
-Un utilisateur ne doit jamais pouvoir consulter une opération d’un autre projet en fournissant sa référence.
-
-Les lectures doivent rester strictement sans effet de bord.
-
-Aucun polling ne doit déclencher une réparation, une mutation, un retry ou un appel réseau Temporal/Orq.
-
-9. Permissions
-
-Conserve la permission provision_orq_project introduite pendant C5.
-
-Utilise uniquement les permissions de lecture projet existantes pour les consultations ordinaires, après vérification de leur pertinence.
-
-Préserve la permission project#repair pour les interventions de support.
-
-Ne considère pas ces trois responsabilités comme équivalentes.
-
-Les diagnostics réservés au support ne doivent pas être exposés à un utilisateur disposant uniquement d’une permission de lecture ordinaire.
-
-Vérifie notamment :
-
-* Project Manager autorisé sur son périmètre.
-* Project Manager refusé hors périmètre.
-* Project Viewer incapable de provisionner.
-* Consultation autorisée selon les droits existants.
-* Restitution idempotente protégée.
-* Refus sécurisé lorsque SpiceDB est indisponible.
-
-N’introduis aucune nouvelle permission sans nécessité démontrée.
-
-10. Sources autoritatives
-
-Conserve strictement :
-
-* Projet LMC : configuration désirée.
-* ProjectOrqSaga : état métier.
-* orq_project_mappings : identité distante autoritative.
-* orq_project_temporal_start_outbox : livraison Temporal.
-* Temporal : orchestration et historique d’exécution.
-
-Les informations API doivent être dérivées de ces sources.
-
-Évite les lectures incohérentes entre plusieurs tables pendant une transition concurrente.
-
-Ne crée aucune nouvelle table de suivi ni aucune nouvelle Saga.
-
-Aucune migration n’est attendue.
-
-11. Préservation du Repair
-
-C7d a terminé l’intégration backend du Repair Orq avec :
-
-* DIAGNOSE.
-* LOOKUP_TEMPORAL_DELIVERY.
-* CONVERGE_LOCAL.
-
-Ne redéveloppe aucune de ces fonctionnalités.
-
-Préserve le comportement historique du POST repair sans corps.
-
-Le Repair reste un outil résiduel de debug et d’intervention manuelle destiné au développeur.
-
-La récupération automatique qualifiée pendant C7b-Q reste indépendante du Repair.
-
-La récupération après fermeture développée dans C7c reste actuellement déclenchée manuellement.
-
-Ne développe aucun nouveau mécanisme de récupération pendant C7e.
-
-12. Préparation concrète de C8
-
-À la fin de C7e, le backend doit fournir tous les contrats nécessaires pour permettre au frontend :
-
-* D’afficher un bouton de provisioning aux utilisateurs autorisés.
-* De déclencher une demande.
-* D’afficher une progression.
-* De reprendre le suivi après rafraîchissement.
-* D’éviter les demandes multiples accidentelles.
-* D’afficher les erreurs compréhensibles.
-* De distinguer succès, attente et intervention nécessaire.
-* D’enrichir la modale Repair existante avec une section Orq.
-
-Inspecte les composants frontend existants uniquement pour préparer leurs futurs points d’intégration.
-
-Ne modifie aucun fichier frontend pendant C7e.
-
-Ne crée pas de nouvelle page dédiée si les interfaces projet existantes permettent une intégration naturelle.
-
-13. Tests d’intégration API
-
-Qualifie les véritables routes FastAPI avec PostgreSQL 18.4 et SpiceDB isolés lorsque pertinent.
-
-Teste notamment :
-
-* Demande nominale via HTTP.
-* Persistance atomique Saga/outbox/audit par C5.
-* Demande identique.
-* Demandes concurrentes.
-* Demande conflictuelle.
-* Perte de réponse HTTP suivie d’une nouvelle demande.
-* Projet inexistant ou inaccessible.
-* Provisioning désactivé.
-* Autorisations positives et négatives.
-* Consultation par operation_ref.
-* Accès inter-projets refusé.
-* Temporal indisponible sans perte de demande.
-* Fonctionnement sans SDK Temporal.
-* Projection operation-progress.
-* Stop-B de C6-Q.
-* LOCAL_PERSISTENCE.
-* UNKNOWN_OUTCOME.
-* Succès métier avec acquittement de livraison incomplet.
-* Cohérence des lectures concurrentes.
-* Compatibilité des réponses historiques.
-* Non-régression du Repair C7d.
-* Absence de fuite de données sensibles.
-* Aucun démarrage direct de Workflow.
-* Aucun appel Orq réel.
-
-Réutilise les fixtures et composants qualifiés précédemment.
-
-Ne multiplie pas inutilement les tests reproduisant une logique métier déjà couverte par C5, C6 ou C7d.
-
-14. Non-régression
-
-Utilise C7d comme référence :
-
-* 706 cas JUnit.
-* 679 réussites.
-* 27 échecs historiques identiques.
-* PostgreSQL 18.4.
-* Head Alembic 0004_orq_saga_outbox.
-* Catalogue applicatif inchangé.
-
-Exécute les tests ciblés, les tests d’intégration API, les tests PostgreSQL et SpiceDB pertinents, la suite complète, la compilation Python et pip check.
-
-Compare les node IDs et les traces normalisées des échecs historiques.
-
-Vérifie également le fonctionnement normal du LMC sans SDK Temporal.
-
-Ne modifie aucun test historique pour masquer une régression.
-
-15. Préparation du lancement fonctionnel
-
-Inspecte et documente les prérequis nécessaires pour notre première qualification depuis le véritable LMC local :
-
-* Compatibilité du schéma PostgreSQL avec Alembic.
-* Application du schéma SpiceDB local actualisé.
-* Activation explicite du provisioning.
-* Configuration du Worker et du Dispatcher.
-* Cohérence de leurs Task Queues.
-* Connexion Temporal préproduction.
-* Configuration Orq.
-* Lancement habituel du backend et du frontend.
-
-Nous devons absolument conserver notre manière actuelle de lancer le LMC.
-
-Ne modifie pas encore la procédure standard de lancement ni le pont Alembic.
-
-Identifie les éventuels blocages afin de pouvoir les traiter lors de la qualification fonctionnelle.
-
-Ne suppose pas que les bases historiques sont compatibles avec les nouvelles migrations.
-
-16. Contraintes impératives
-
-* Aucune opération Git ou GitLab.
-* Aucun commit, branche, push, merge, rebase ou création de MR.
-* Aucun déploiement.
-* Aucun appel distant Temporal ou Orq.
-* Aucune modification Kubernetes.
-* Aucun serveur Temporal local.
-* Aucune installation de Temporal CLI.
-* Aucune modification des ressources Docker existantes.
-* Seules les ressources temporaires isolées nécessaires aux tests sont autorisées.
-* Aucune modification de Docker Compose ou des Dockerfiles.
-* Aucune modification des scripts 01/02/03.
-* Aucune modification des configurations VS Code.
-* Aucune modification des migrations existantes.
-* Aucune modification du pont Alembic.
-* Aucun changement de la procédure habituelle de lancement.
-* Aucun développement frontend.
-* Aucun nouveau chantier de Repair.
-* Préservation intégrale des espaces précédents.
-
-17. Documentation et restitution
-
-Crée :
-
-documentation/C7E_PROVISIONING_API_INTEGRATION.md
-
-Rédige la documentation technique en anglais et restitue-moi les résultats en français.
-
-Mets à jour l’index canonique et la roadmap.
-
-Documente chaque fichier et symbole créé ou modifié, son rôle, le comportement avant/après, les composants réutilisés, les choix techniques et les alternatives envisagées.
-
-Présente-moi :
-
-* Les endpoints disponibles.
-* Les contrats exacts de requête et de réponse.
-* Des exemples HTTP synthétiques.
-* Les permissions utilisées.
-* Les états disponibles pour le frontend.
-* Le fonctionnement du suivi par operation_ref.
-* Les résultats des tests.
-* Les résultats de non-régression.
+* La vision métier.
+* L’architecture actuelle.
+* Les décisions techniques et leurs justifications.
+* Les alternatives rejetées ou supersédées.
+* La méthode de travail.
+* L’état exact du code.
+* Les qualifications réellement effectuées.
 * Les limitations restantes.
-* Les fichiers frontend à modifier pendant C8.
-* Les prérequis du premier lancement fonctionnel local.
+* Les prochaines tâches.
+* Les références vers la documentation détaillée et les fichiers sources.
 
-Ne propose pas une nouvelle grande campagne de qualification isolée C7e-Q.
+Ne produis pas uniquement un résumé de la conversation.
 
-Nous passerons directement à C8, sous réserve des résultats de C7e, puis à une qualification fonctionnelle intégrée depuis le véritable LMC.
+Construis une mémoire de reprise opérationnelle, vérifiée contre les sources locales.
 
-Notre objectif reste la parité fonctionnelle complète avec le Mock LMC en local avant tout déploiement en préproduction.
+Si une information historique n’est plus accessible ou ne peut pas être vérifiée, signale-le explicitement.
 
-Tu peux commencer C7e.
+3. Organisation de la passation
 
-Ne commence pas C8 sans mon accord.
+Crée un dossier spécifique :
+
+/workspace/LEA_Workspace/project-memory/
+
+Ne mets pas encore en place de base de connaissances globale pour les autres projets.
+
+Cette tâche concerne uniquement la continuité du projet LMC/Orq.
+
+Crée les documents suivants :
+
+* 00_START_HERE.md : point d’entrée compact et instructions de lecture.
+* 01_PROJECT_CONTEXT.md : vision métier et périmètre fonctionnel.
+* 02_ARCHITECTURE.md : architecture implémentée et architecture cible.
+* 03_DECISIONS.md : décisions validées, justifications, alternatives rejetées et décisions ouvertes.
+* 04_CURRENT_STATE.md : état exact de l’implémentation et dernier workspace valide.
+* 05_ROADMAP.md : étapes restantes et critères d’acceptation.
+* 06_WORKING_RULES.md : méthode de travail et contraintes impératives.
+* 07_QUALIFICATION.md : résultats, références de tests et preuves.
+* 08_KNOWN_LIMITATIONS.md : limitations et décisions non résolues.
+* 09_SOURCE_INDEX.md : index des fichiers, symboles, tests et documentations.
+* 10_ENVIRONMENT_RUNBOOK.md : environnement local et procédures qualifiées.
+* 11_HANDOFF.md : transmission opérationnelle vers C8.
+
+Réutilise au maximum les documents existants.
+
+Ne recopie pas intégralement les documentations C0 à C7e.
+
+La mémoire doit servir de synthèse structurée et d’index vers les sources autoritatives.
+
+4. Instructions permanentes
+
+Inspecte les éventuels AGENTS.md déjà présents et vérifie les mécanismes réellement pris en charge par notre version de Software Companion.
+
+Si cela est approprié et sans impact sur les projets indépendants, prépare un AGENTS.md compact et spécifique à ce projet.
+
+Il doit référencer la mémoire projet et expliquer la procédure de reprise.
+
+Ne modifie aucune configuration globale de Software Companion pendant cette tâche.
+
+Ne remplace aucune instruction existante sans analyse préalable.
+
+5. Contexte métier à préserver
+
+Documente notamment :
+
+* Le rôle du LMC.
+* Le rôle d’Engineering Companion.
+* Le rôle d’Orq dans l’architecture.
+* Le Mock LMC comme référence de parité fonctionnelle.
+* Le provisioning persistant explicitement déclenché par le Project Manager.
+* L’objectif d’un provisioning global des ressources nécessaires.
+* La séparation des projets et des ressources utilisateurs.
+* Les décisions relatives aux modèles et aux versions épinglées des agents.
+* Les connecteurs Jira et GitLab.
+* La propagation du LMC Project ID jusqu’aux MCP.
+* Les ressources réellement provisionnées par le Mock LMC.
+* Les fonctionnalités explicitement hors périmètre.
+
+Inspecte le Mock LMC et ses documents pour vérifier l’exhaustivité du périmètre.
+
+Ne confonds pas la création du projet Orq avec le provisioning complet d’Engineering Companion.
+
+6. Architecture à préserver
+
+Documente précisément les responsabilités et interactions entre :
+
+* FastAPI et React.
+* PostgreSQL.
+* SpiceDB.
+* ProjectOrqSaga.
+* orq_project_mappings.
+* orq_project_temporal_start_outbox.
+* Service d’enqueue C5.
+* Dispatcher C6.
+* Temporal.
+* Worker C4.
+* Workflow V2.
+* Activities.
+* Gateway Orq.
+* Store PostgreSQL.
+* Récupération C7b et C7c.
+* Repair C7d.
+* API C7e.
+
+Conserve les frontières transactionnelles, les ordres de verrouillage, les mécanismes CAS, les leases, les protections de génération et les règles de réconciliation.
+
+Indique les fichiers et symboles permettant de retrouver chaque composant.
+
+Documente les garanties réelles et leurs limites.
+
+Ne revendique aucune garantie exactly-once distribuée.
+
+7. Décisions structurantes
+
+Préserve notamment :
+
+* La réutilisation de ProjectOrqSaga plutôt que la création d’une table d’opérations parallèle.
+* La séparation entre statut métier, identité distante et livraison Temporal.
+* L’utilisation de Temporal préproduction existant, sans serveur Temporal local.
+* Le Worker et le Dispatcher séparés et désactivés par défaut.
+* La réservation durable avant mutation.
+* L’interdiction de relancer une mutation ambiguë à l’aveugle.
+* L’absence de compensation DELETE automatique.
+* Le Workflow ID déterministe.
+* La permission dédiée provision_orq_project.
+* La distinction entre provisioning, consultation et Repair.
+* La récupération automatique sûre comme priorité.
+* Le Repair comme outil résiduel de debug destiné au développeur.
+
+Pour chaque décision, préserve autant que possible son contexte, sa justification et les alternatives abandonnées.
+
+Ne réintroduis pas les anciennes orientations supersédées.
+
+8. Qualifications importantes
+
+Conserve les références et résultats précis de :
+
+* T2 : qualification de la connexion Temporal.
+* C4-Q : qualification LIMITED du Worker.
+* C6-Q : qualification LIMITED de la chaîne complète.
+* C7b-Q : qualification ACCEPTED de la récupération automatique après interruption réelle du Worker.
+* C7c : récupération post-fermeture qualifiée localement.
+* C7d : Repair backend qualifié localement.
+* C7e : API et operation-progress qualifiés localement.
+
+Préserve les distinctions entre tests réels, mocks, injections d’erreurs, interruptions de processus et replays.
+
+Documente explicitement que le problème de récupération observé pendant C4-Q a ensuite été corrigé et qualifié réellement dans C7b-Q.
+
+Ne conserve aucun historique sensible, credential ou secret dans la mémoire projet.
+
+9. Prochaine mission : C8
+
+Prépare un handoff particulièrement précis pour le frontend.
+
+Les endpoints C7e sont désormais :
+
+* POST /v1/projects/{project_ref}/orq-provisioning
+* GET /v1/projects/{project_ref}/operation-progress
+* GET /v1/projects/{project_ref}/operation-progress?operation_ref={operation_ref}
+* POST /v1/projects/{project_ref}/repair
+
+Vérifie et documente les contrats exacts depuis le code.
+
+Le POST de provisioning accepte uniquement le mode APPLY.
+
+Il retourne 202 pour une nouvelle opération et 200 pour une déduplication.
+
+Documente précisément :
+
+* Les modèles TypeScript à enrichir.
+* Les méthodes API à ajouter.
+* Les composants React à modifier.
+* Les statuts disponibles.
+* Le champ can_provision et ses limites.
+* Le suivi par operation_ref.
+* Les mécanismes de polling existants.
+* Le comportement après perte de réponse HTTP.
+* Les permissions.
+* Les actions Repair disponibles.
+* Les tests frontend existants et ceux à ajouter.
+
+Les fichiers frontend précédemment identifiés sont notamment :
+
+* frontend/src/types/index.ts
+* frontend/src/api/client.ts
+* frontend/src/components/LmcProject.tsx
+* frontend/src/components/LmcRepairProjectModal.tsx
+* frontend/src/styles/LmcRepairProjectModal.css
+
+Vérifie leurs chemins et symboles exacts.
+
+Le prochain agent devra réutiliser l’interface projet et la modale Repair existantes.
+
+Il ne devra pas développer une nouvelle plateforme de support.
+
+10. Préparation du premier lancement réel
+
+Documente les prérequis et limitations concernant :
+
+* La procédure habituelle de lancement du LMC.
+* Les scripts 01/02/03.
+* Docker Compose.
+* Les configurations VS Code.
+* PostgreSQL 18.4.
+* Le pont Alembic.
+* Le schéma SpiceDB actualisé.
+* L’activation explicite du provisioning.
+* Le Worker et le Dispatcher sur la même Task Queue.
+* Le tunnel Temporal depuis le DevEnv.
+* La configuration Orq autorisée.
+
+Le principal blocage identifié pendant C7e reste le pont Alembic après le reset historique.
+
+Ne présente pas le stamp Alembic comme une opération générique applicable à n’importe quelle base.
+
+Il doit être précédé de la vérification de la compatibilité exacte du catalogue et limité à une base locale explicitement autorisée.
+
+Préserve toutes les limitations historiques encore ouvertes.
+
+11. Méthode de travail à transmettre
+
+Notre fonctionnement repose sur trois responsabilités :
+
+* Je conserve la responsabilité des arbitrages et des validations structurantes.
+* Un assistant externe nous accompagne sur la vision globale, l’architecture, les choix techniques et la rédaction des missions.
+* Software Companion possède l’accès au code et aux outils nécessaires pour inspecter, challenger, implémenter, tester et documenter.
+
+Software Companion ne doit jamais exécuter aveuglément une proposition incompatible avec le véritable code.
+
+Préserve notre méthode :
+
+* Micro-MR cumulatives et ciblées.
+* Workspaces isolés.
+* Préservation des étapes précédentes.
+* Documentation technique vivante en anglais.
+* Restitution des résultats en français.
+* Tests ciblés et non-régression.
+* Qualification honnête.
+* Validation avant de poursuivre.
+* Aucune opération Git ou GitLab par Software Companion.
+* Aucun changement Kubernetes.
+* Aucun changement des ressources Docker existantes.
+* Aucun déploiement LMC avant la parité complète avec le Mock LMC local.
+* Aucune mutation distante réelle sans autorisation explicite.
+* Préservation de la procédure habituelle de lancement du LMC.
+
+Ces contraintes restent spécifiques à notre projet.
+
+12. Optimisation de la consommation de tokens
+
+La nouvelle session ne doit pas avoir à relire tous les documents historiques systématiquement.
+
+Organise une lecture progressive :
+
+* Instructions permanentes compactes.
+* Point d’entrée.
+* État courant.
+* Handoff.
+* Documents spécialisés selon la tâche.
+* Sources détaillées uniquement lorsque nécessaire.
+
+Évite les duplications.
+
+Indexe précisément les fichiers et symboles déjà investigués.
+
+Évite de mobiliser plusieurs sous-agents pour redécouvrir des informations déjà vérifiées.
+
+Ne réduis cependant jamais la qualité des tests, des analyses de sécurité ou des validations nécessaires uniquement pour économiser des tokens.
+
+Définis une procédure légère de maintenance de cette mémoire après chaque micro-MR.
+
+13. Validation de la passation
+
+Vérifie :
+
+* L’existence des chemins référencés.
+* La cohérence de l’état applicatif.
+* Les résultats de non-régression.
+* Les contradictions entre anciennes et nouvelles décisions.
+* L’exhaustivité du périmètre Mock LMC.
+* L’absence de secrets.
+* La précision de la prochaine mission.
+
+Si possible, réalise une vérification de reprise à froid avec un agent ne recevant que le point d’entrée et les références documentaires.
+
+Ne lui transmets pas l’intégralité de cette session.
+
+Limite cette vérification à ce qui est nécessaire.
+
+14. Restitution finale
+
+Présente-moi en français :
+
+* Les fichiers créés.
+* La structure de la mémoire.
+* Les vérifications effectuées.
+* Les informations éventuellement manquantes.
+* Les décisions ouvertes.
+* Le volume approximatif du contexte initial.
+* Le dernier workspace applicatif valide.
+* Les documents à lire pour C8.
+* Un prompt de reprise compact pour la nouvelle session.
+
+Cette tâche est exclusivement documentaire.
+
+Aucune modification applicative, aucune opération Git, aucun appel distant, aucun changement d’infrastructure.
+
+Ne commence pas C8.
+
+Une fois la passation terminée, nous fermerons cette phase de travail et commencerons une nouvelle session Software Companion.
