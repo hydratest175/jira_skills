@@ -1,303 +1,274 @@
-Je valide les conclusions de l’analyse documentaire C7a ainsi que la nouvelle orientation concernant le Repair.
+Je valide C7b sur son périmètre de qualification locale.
 
-Notre priorité est désormais la récupération automatique sécurisée, avec une intégration minimale au mécanisme de debug et de support existant.
+Notre nouvelle référence applicative est désormais :
 
-Attention : C7a n’a finalement introduit aucun code applicatif. L’endpoint de provisioning, le suivi des opérations Orq et l’intégration à operation-progress restent donc à implémenter. Assure-toi qu’ils figurent explicitement dans la roadmap avant C8.
+* 629 cas JUnit.
+* 602 réussites.
+* 27 échecs historiques strictement identiques.
+* 90 tests ciblés réussis.
+* 49 tests PostgreSQL ciblés réussis.
+* 102 tests PostgreSQL cumulés réussis.
+* 5 tests SpiceDB réussis.
+* 155 tests réussis sans SDK Temporal, avec un test SDK ignoré.
+* 14/14 historiques Temporal C4-Q et C6-Q rejoués avec succès.
+* PostgreSQL 18.4.
+* Head Alembic : 0004_orq_saga_outbox.
+* Catalogue applicatif inchangé : 32 tables, 17 triggers, 4 fonctions, 85 index et 390 contraintes.
 
-Nous pouvons commencer C7b — Automatic LOCAL_PERSISTENCE Recovery During Active Workflow.
+Nous allons maintenant réaliser C7b-Q — Targeted Real Qualification of Active Workflow Recovery.
+
+Cette qualification doit rester courte, ciblée et proportionnée.
 
 1. Espace de travail
 
-Utilise comme base applicative cumulative :
-
-/workspace/LEA_Workspace/lcc-c6-temporal-outbox-dispatcher
-
-Crée un nouvel espace isolé :
+Utilise comme référence applicative :
 
 /workspace/LEA_Workspace/lcc-c7b-active-workflow-recovery
 
-C7a constitue une référence documentaire, et non une nouvelle base applicative.
+Crée un espace de qualification distinct :
 
-Préserve intégralement tous les espaces précédents.
+/workspace/LEA_Workspace/lcc-c7bq-active-workflow-recovery-qualification
 
-2. Documentation et références
+Préserve intégralement les espaces précédents.
+
+C7b-Q constitue une qualification, pas une nouvelle base applicative.
+
+Ne copie aucun credential, fichier .env réel, historique sensible, environnement virtuel ou métadonnée Git.
+
+2. Réutilisation de l’existant
 
 Relis notamment :
 
+* C7B_ACTIVE_WORKFLOW_RECOVERY.md
 * C7A_ORQ_RECOVERY_AND_REPAIR_ANALYSIS.md
-* LMC_SAGA_REPAIR_CONVERGENCE_ANALYSIS.md
-* C3C_PROVISIONING_WORKFLOW_V2.md
-* C3D_POSTGRESQL_STATE_STORE.md
-* C3E_PROVISIONING_ACTIVITIES_V2.md
 * C4Q_TEMPORAL_REAL_QUALIFICATION.md
-* C6_TEMPORAL_OUTBOX_DISPATCHER.md
 * C6Q_TEMPORAL_REAL_QUALIFICATION.md
+* LMC_SAGA_REPAIR_CONVERGENCE_ANALYSIS.md
 * LMC_WORKSPACE_INDEX.md
 * La roadmap canonique.
 
-Inspecte les preuves réellement conservées lors de C4-Q.
+Réutilise autant que possible les harnesses de qualification C4-Q et C6-Q.
 
-Identifie précisément la cause du Workflow FAILED après redémarrage, malgré la conservation de LOCAL_PERSISTENCE et l’absence de deuxième POST.
+Ne reconstruis pas une nouvelle infrastructure de test si les composants existants permettent cette qualification.
 
-Ne suppose pas que la cause est uniquement liée à la configuration des retries Temporal.
+Ne recommence pas les recherches réseau, Kubernetes, SDK ou Artifactory déjà réalisées.
 
-3. Objectif de C7b
+3. Objectif principal
 
-Permettre au Workflow actif de récupérer automatiquement les échecs de persistance locale lorsque les preuves nécessaires existent déjà.
+Reproduire réellement le scénario de redémarrage qui avait échoué pendant C4-Q.
 
-L’objectif est notamment d’éviter qu’une ressource Orq correctement créée et identifiée conduise inutilement à une opération métier en échec.
+Lors de C4-Q :
 
-La récupération doit être intégrée à la chaîne existante.
+* record_confirmed_result() avait commité LOCAL_PERSISTENCE.
+* Le Worker avait été interrompu avant l’acquittement Temporal.
+* Le Workflow avait produit ACTIVITY_OUTCOME_LOST.
+* Le Store avait correctement refusé d’écraser la preuve persistée.
+* Le Workflow avait terminé FAILED.
+* Aucun deuxième POST n’avait été effectué.
 
-Ne développe pas un second orchestrateur, un système de support parallèle ou un nouveau moteur de Saga.
+C7b introduit désormais :
 
-4. Séparation des responsabilités
+* L’Activity lmc.orq_project.recover_local_persistence.v2.
+* Le mécanisme workflow.patched(“orq-v2-active-local-persistence-recovery-v1”).
+* Une récupération exclusivement locale.
+* Une récupération bornée à trois essais.
+* La réutilisation des CAS persist_mapping() et record_outcome().
 
-Conserve les responsabilités suivantes :
+L’objectif de C7b-Q est de démontrer que cette correction fonctionne réellement sur Temporal.
 
-* Temporal orchestre l’exécution et les reprises contrôlées.
-* Les Activities exécutent les opérations métier.
-* Le Store PostgreSQL contrôle les transitions durables et les CAS.
-* ProjectOrqSaga représente l’état métier autoritatif.
-* orq_project_mappings représente l’identité distante autoritative.
-* L’outbox représente la livraison à Temporal.
-* Le Repair existant reste un outil résiduel de diagnostic et d’intervention manuelle.
+4. Infrastructure et isolation
 
-Ne déplace pas vers le Repair une récupération qui peut être effectuée automatiquement et de manière sûre pendant le Workflow.
+Utilise exclusivement :
 
-5. Scénarios à récupérer
+* Temporal préproduction existant et autorisé.
+* Le SDK Temporal 1.18.2.
+* Une Task Queue de qualification unique.
+* PostgreSQL 18.4 temporaire et isolé.
+* Un Worker local C7b.
+* Le véritable service C5 et Dispatcher C6 lorsque cela est pertinent.
+* Un gateway Orq obligatoirement factice.
+* Des projets et acteurs entièrement synthétiques.
+* Un compteur durable des POST simulés.
 
-Inspecte les possibilités de convergence automatique pour :
+Réutilise les protections contre les appels Orq réels déjà qualifiées pendant C4-Q et C6-Q.
 
-* Identité Orq confirmée mais mapping non persisté.
-* Mapping persisté mais acquittement perdu.
-* Mapping confirmé mais finalisation incomplète.
-* Perte d’acquittement après persistance du résultat distant.
-* Erreur PostgreSQL transitoire.
-* Interruption du Worker pendant une étape exclusivement locale.
-* Redélivrance d’une Activity de persistance ou de finalisation.
+Aucun fallback vers le gateway réel ne doit être possible.
 
-Pour chaque scénario, identifie les preuves durables nécessaires et les préconditions exactes.
+Vérifie de nouveau le cluster, le namespace, les autorisations, la connexion et l’absence de pollers inattendus.
 
-Une récupération ne doit être effectuée que lorsque l’identité et la cohérence de l’opération peuvent être établies.
+Je réaliserai personnellement les éventuelles commandes Kubernetes et le tunnel depuis le DevEnv.
 
-Distingue les opérations encore actives des opérations déjà terminales. Ne contourne pas les contraintes d’immuabilité ou les CAS existants.
+Communique-moi uniquement les commandes nécessaires en réutilisant les procédures précédemment qualifiées.
 
-6. Préservation des protections contre les doublons
+5. Scénario nominal de contrôle
 
-Toutes les garanties précédemment développées restent impératives :
+Exécute un scénario nominal court avec la version C7b.
 
-* Réservation durable avant mutation.
-* mutation_attempted irréversible.
-* Aucun verrou SQL pendant les appels réseau.
-* Aucun retry aveugle d’une mutation Orq.
-* Aucun deuxième POST après une mutation potentiellement effectuée.
-* Aucun DELETE automatique.
-* Aucun changement arbitraire de génération.
-* Aucune nouvelle Saga pour masquer une opération existante.
-* Aucun écrasement des preuves persistées.
-* Aucun contournement des protections CAS.
+Vérifie :
 
-Ne confonds jamais une identité candidate avec une identité distante confirmée.
+* Workflow COMPLETED.
+* Saga SUCCEEDED.
+* Outbox STARTED.
+* Mapping exact.
+* Un seul POST simulé.
+* Absence de déclenchement inutile de l’Activity de récupération.
 
-Une erreur PostgreSQL après création Orq ne doit pas provoquer une nouvelle création Orq.
+Cela permettra de démontrer que la nouvelle logique n’introduit pas de récupération superflue dans le parcours normal.
 
-7. Utilisation des retries Temporal
+6. Scénario principal : redémarrage du Worker
 
-Inspecte les politiques de retry actuelles du Workflow V2 et de ses Activities.
+Utilise une opération distincte.
 
-Identifie les étapes purement locales pouvant bénéficier de retries bornés et idempotents.
+Reproduis aussi précisément que possible la fenêtre d’interruption C4-Q :
 
-Privilégie les mécanismes natifs de Temporal lorsque cela permet une récupération plus simple et plus robuste.
+1. Le Workflow démarre normalement.
+2. Le gateway factice effectue la mutation simulée.
+3. L’identité distante est confirmée.
+4. record_confirmed_result() persiste et commite la preuve LOCAL_PERSISTENCE.
+5. Une session PostgreSQL indépendante vérifie que le commit est effectif.
+6. Le processus Worker de qualification est réellement interrompu avant l’acquittement de l’Activity auprès de Temporal.
+7. Un nouveau processus Worker est démarré sur la même Task Queue.
+8. Le Workflow existant poursuit son exécution.
+9. La nouvelle Activity de récupération locale intervient.
+10. Le mapping est persisté ou retrouvé.
+11. ProjectOrqSaga est correctement finalisée.
 
-Cependant :
+Ne modifie pas le code applicatif pour introduire les points d’interruption.
 
-* Ne rends pas automatiquement retryable l’Activity mutative de réconciliation.
-* Ne modifie pas globalement maximum_attempts sans analyser les conséquences.
-* Ne relance pas le Workflow complet pour corriger une erreur de persistance.
-* Ne répète pas une étape distante déjà effectuée.
-* Ne crée pas de boucle de récupération infinie.
+Utilise les mécanismes de synchronisation et d’injection du harness.
 
-Si nécessaire, sépare explicitement la récupération locale de la logique de mutation distante.
+Vérifie que l’interruption intervient réellement après le commit PostgreSQL et avant l’acquittement Temporal.
 
-Réutilise au maximum les méthodes du Store C3d.
+Si cette fenêtre exacte n’a pas été atteinte, classe le résultat comme partiel.
 
-Justifie chaque changement de politique de retry.
+7. Critères de réussite obligatoires
 
-8. Préservation du déterminisme Temporal
+Pour le scénario principal :
 
-Toute modification du Workflow V2 doit être évaluée au regard de sa compatibilité avec les historiques existants.
+* Même opération_ref.
+* Même génération.
+* Même Workflow ID.
+* Même exécution Temporal reprise.
+* Nouveau PID Worker.
+* Exactement un POST simulé au total.
+* Aucune nouvelle création distante.
+* Aucun DELETE.
+* Aucun accès au gateway Orq pendant la récupération locale.
+* Preuves persistées conservées.
+* Mapping exact et cohérent.
+* Saga SUCCEEDED.
+* Workflow COMPLETED.
+* Présence de l’Activity recover_local_persistence.v2 dans l’historique Temporal.
 
-Utilise les historiques sûrs conservés pendant C4-Q et C6-Q.
+Vérifie également que le nombre de tentatives de récupération respecte le budget configuré.
 
-Vérifie si les modifications nécessitent un mécanisme de versioning ou de patching Temporal.
+Ne confonds pas la réussite de la Saga avec la réussite technique du Workflow : les deux doivent être vérifiées séparément.
 
-Ne modifie pas silencieusement les contrats ou le comportement déterministe du Workflow.
+8. Contrôles complémentaires
 
-Exécute les replays hors ligne pertinents.
+Vérifie la compatibilité du patch Temporal et la préservation du déterminisme.
 
-Si une incompatibilité subsiste, documente-la et propose une stratégie de compatibilité avant toute qualification distante.
+Rejoue hors ligne les nouveaux historiques lorsque leur conservation est autorisée et sûre.
 
-Ne prétends pas avoir rejoué l’historique du redémarrage C4-Q : celui-ci n’a pas été conservé pour des raisons de sécurité.
+Conserve les résultats des 14 historiques précédemment rejoués.
 
-9. Résultat attendu
+Ne prétends pas avoir rejoué l’ancien historique de redémarrage C4-Q, puisqu’il n’avait pas été conservé.
 
-Lorsque les preuves durables sont suffisantes et que les conditions métier restent valides, le Workflow doit pouvoir reprendre la persistance locale et terminer correctement l’opération.
+Les scénarios UNKNOWN_OUTCOME, candidat non confirmé, conflit de mapping et épuisement du budget restent couverts par les tests locaux C7b.
 
-Dans le scénario cible :
+Ne multiplie pas inutilement les exécutions distantes pour répéter ces tests.
 
-* Une seule mutation Orq a été effectuée.
-* L’identité distante confirmée est conservée.
-* Le Worker rencontre une erreur de persistance ou une interruption.
-* Le Workflow reprend les étapes locales autorisées.
-* Le mapping est correctement persisté ou retrouvé.
-* ProjectOrqSaga est finalisée conformément aux preuves.
-* Aucun deuxième POST n’est effectué.
+9. Périmètre de qualification
 
-Lorsque les preuves sont insuffisantes, le système doit conserver une classification honnête et exploitable.
+Limite normalement cette qualification à deux exécutions Temporal :
 
-Ne transforme pas artificiellement une situation incertaine en SUCCEEDED.
+* Un scénario nominal de contrôle.
+* Un scénario de redémarrage réel.
 
-10. Qualification locale
+Si une exécution supplémentaire est nécessaire à cause d’une fenêtre d’interruption manquée, documente précisément sa justification et demande mon accord avant de la lancer.
 
-Utilise PostgreSQL 18.4 réel et isolé ainsi qu’un gateway Orq factice.
+Ne recommence pas la qualification complète C6-Q.
 
-Teste notamment :
+Ne développe pas encore C7c, C7d, l’API ou le frontend.
 
-* Récupération après erreur locale transitoire.
-* Récupération après persistance de l’identité distante confirmée.
-* Mapping déjà commité.
-* Perte d’acquittement après commit.
-* Finalisation idempotente.
-* Redélivrance d’une Activity.
-* Deux tentatives concurrentes de récupération.
-* Conflit de mapping.
-* Snapshot devenu obsolète.
-* Opération terminale.
-* Identité uniquement candidate.
-* UNKNOWN_OUTCOME.
-* Épuisement du budget de récupération.
-* Absence de deuxième POST.
-* Absence de DELETE.
-* Préservation de toutes les preuves.
-* Compatibilité avec les contrats V2.
-* Replay hors ligne des historiques disponibles.
+Si une anomalie applicative est identifiée, documente-la et propose une correction ciblée avant de modifier C7b.
 
-Utilise de véritables transactions PostgreSQL et plusieurs sessions indépendantes lorsque pertinent.
+10. Contraintes impératives
 
-Distingue les erreurs injectées des véritables interruptions de processus.
-
-11. Qualification réelle ultérieure
-
-Prépare un protocole court et ciblé permettant de rejouer le scénario problématique de C4-Q avec :
-
-* Temporal préproduction existant.
-* Worker local.
-* PostgreSQL temporaire.
-* Gateway Orq factice.
-* Compteur durable de POST simulés.
-* Interruption contrôlée du Worker.
-* Vérification du résultat final Temporal et de ProjectOrqSaga.
-
-Notre objectif est de démontrer une amélioration réelle par rapport à C4-Q, et pas uniquement une augmentation du nombre de tests unitaires.
-
-Réutilise les harnesses existants lorsque possible.
-
-Ne recommence pas toute la qualification C6-Q.
-
-N’exécute pas encore ce protocole distant sans mon accord.
-
-12. Périmètre strict
-
-C7b doit uniquement concerner la récupération pendant un Workflow actif.
-
-Ne commence pas :
-
-* C7c : récupération locale après fermeture prouvée du Workflow.
-* C7d : lookup résiduel et intégration minimale au Repair.
-* L’intégration API de provisioning et operation-progress.
-* C8 : intégration frontend.
-* Les mécanismes privilégiés de résolution manuelle.
-* Le provisioning des autres ressources Orq.
-
-N’introduis aucun nouveau service permanent de surveillance ou de récupération sans nécessité démontrée.
-
-Nous souhaitons conserver une architecture simple et proportionnée.
-
-13. Non-régression
-
-Notre référence applicative reste C6 :
-
-* 607 cas JUnit.
-* 580 réussites JUnit.
-* 551 tests pytest réussis.
-* 29 sous-tests réussis.
-* 27 échecs historiques strictement identiques.
-* PostgreSQL 18.4.
-* Head Alembic : 0004_orq_saga_outbox.
-* 32 tables, 17 triggers, 4 fonctions, 85 index et 390 contraintes.
-
-Notre référence de qualification réelle C6-Q comprend également :
-
-* 11 Workflows Temporal réels COMPLETED.
-* 11 replays hors ligne réussis.
-* 23 tests du harness réussis.
-* Aucun double start ou double POST observé.
-
-Exécute les tests ciblés, les tests d’intégration PostgreSQL, les tests cumulés, la suite complète, la compilation Python et pip check.
-
-Compare les échecs historiques avec C6.
-
-Vérifie également le fonctionnement sans SDK Temporal installé.
-
-Aucune nouvelle migration n’est attendue.
-
-14. Contraintes impératives
-
+* Aucun appel réel Orq.
+* Aucun déploiement LMC.
 * Aucune opération Git ou GitLab.
-* Aucun déploiement.
-* Aucun appel distant Temporal ou Orq pendant C7b.
+* Aucune modification Kubernetes.
 * Aucun serveur Temporal local.
 * Aucune installation de Temporal CLI.
-* Aucune modification Kubernetes.
 * Aucune modification des ressources Docker existantes.
-* Seules les ressources temporaires isolées nécessaires aux tests sont autorisées.
 * Aucune modification de Docker Compose ou des Dockerfiles.
+* Aucune modification des migrations ou du pont Alembic.
 * Aucune modification des scripts 01/02/03.
 * Aucune modification des configurations VS Code.
-* Aucune modification du pont Alembic.
 * Aucun changement de la procédure habituelle de lancement du LMC.
-* Préservation intégrale de tous les espaces précédents.
+* Préservation intégrale des espaces précédents.
 
-15. Documentation et restitution
+Les seules écritures distantes autorisées sont les exécutions Temporal de qualification explicitement prévues, après vérification des autorisations.
 
-Crée une documentation technique en anglais :
+11. Nettoyage et non-régression
 
-documentation/C7B_ACTIVE_WORKFLOW_RECOVERY.md
+À la fin :
+
+* Arrête les processus de qualification.
+* Vérifie les états finaux des Workflows.
+* Vérifie l’absence de pollers de qualification restants.
+* Supprime uniquement les ressources Docker temporaires créées.
+* Supprime les artefacts sensibles.
+* Préserve les preuves assainies.
+* Donne-moi les instructions pour arrêter le tunnel DevEnv.
+
+Documente les historiques distants qui subsistent jusqu’à leur expiration naturelle.
+
+Vérifie que le code applicatif C7b reste inchangé.
+
+Exécute les tests pertinents de non-régression et la suite complète si du code de test permanent est ajouté.
+
+Notre référence reste 629 cas JUnit, dont 602 réussites et 27 échecs historiques identiques.
+
+12. Documentation et restitution
+
+Crée :
+
+documentation/C7BQ_ACTIVE_WORKFLOW_RECOVERY_QUALIFICATION.md
+
+Rédige la documentation technique en anglais et restitue-moi les résultats en français.
+
+Présente notamment :
+
+* Les scénarios réellement exécutés.
+* Le point d’interruption exact.
+* Les preuves PostgreSQL.
+* Les anciens et nouveaux PID.
+* Les états finaux Temporal, Saga et outbox.
+* Le nombre de POST simulés.
+* Les Activities réellement observées.
+* Les résultats des replays.
+* Les limitations restantes.
+* Une comparaison directe avec C4-Q.
 
 Mets à jour l’index canonique et la roadmap.
 
-Pour chaque fichier ou symbole modifié, documente le comportement avant/après, la justification du changement et les alternatives envisagées.
+Conserve explicitement dans la roadmap :
 
-Présente-moi en français :
+* C7c : récupération locale minimale après fermeture prouvée du Workflow.
+* C7d : lookup résiduel et Repair existant.
+* Endpoint HTTP de provisioning au-dessus de C5.
+* Projection Orq dans operation-progress.
+* Suivi par operation_ref.
+* Permissions de lecture existantes.
+* C8 : intégration frontend.
+* Qualification du lancement standard et du pont Alembic.
 
-* La cause précise de la limitation C4-Q.
-* La solution retenue.
-* Les changements apportés au Workflow, aux Activities et au Store.
-* Les scénarios automatiquement récupérables.
-* Les scénarios restant non récupérables.
-* Les garanties démontrées.
-* Les résultats des tests et des replays.
-* Les résultats de non-régression.
-* Le protocole court de qualification réelle.
-* Le périmètre minimal nécessaire pour C7c et C7d.
+Le Repair reste un outil résiduel de debug pour le développeur. Nous ne souhaitons pas développer une plateforme de support complexe.
 
-Actualise explicitement la roadmap pour conserver l’implémentation de l’API de provisioning et du suivi des opérations avant C8.
+Notre priorité demeure la parité fonctionnelle complète avec le Mock LMC depuis le véritable LMC local.
 
-Notre objectif principal reste la parité fonctionnelle complète avec le Mock LMC depuis le véritable LMC lancé localement.
-
-Le Repair doit offrir au développeur la même expérience de debug et d’intervention manuelle que pour les autres composants, sans devenir un chantier disproportionné.
-
-Tu peux commencer C7b.
+Tu peux commencer C7b-Q dans ce périmètre.
 
 Ne commence pas C7c sans mon accord.
