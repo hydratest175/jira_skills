@@ -1,273 +1,286 @@
-Je valide C7b-Q avec la classification ACCEPTED.
+Je valide C7c sur son périmètre de qualification locale.
 
-La correction de la limitation C4-Q est désormais réellement qualifiée sur Temporal préproduction.
+Nous pouvons commencer C7d — Minimal Orq Diagnostics and Existing Repair Integration.
 
-Résultats acquis :
-
-* Deux Workflows Temporal réels exécutés, tous COMPLETED.
-* Scénario nominal réussi.
-* Redémarrage réel du Worker réussi.
-* Même Workflow et même Run repris.
-* Commit LOCAL_PERSISTENCE vérifié depuis une session PostgreSQL indépendante.
-* Activity recover_local_persistence.v2 réussie dès le premier essai.
-* Saga SUCCEEDED et mapping exact.
-* Un seul POST simulé par scénario.
-* Aucun appel au gateway Orq après la barrière de redémarrage.
-* Aucun DELETE.
-* 2/2 nouveaux historiques rejoués.
-* 14/14 anciens historiques C4-Q et C6-Q rejoués.
-* 20 tests harness réussis.
-* 110 tests ciblés cumulés réussis.
-* 629 cas JUnit, 602 réussites et 27 échecs historiques identiques.
-* Backend C7b-Q byte-identique à C7b.
-
-Nous pouvons commencer C7c — Minimal Local Recovery After Proven Workflow Closure.
+Cette étape doit rester volontairement petite. Notre objectif est de terminer l’intégration au mécanisme de debug existant, puis de passer directement à l’API et au frontend.
 
 1. Espace de travail
 
 Utilise comme base applicative cumulative :
 
-/workspace/LEA_Workspace/lcc-c7b-active-workflow-recovery
+/workspace/LEA_Workspace/lcc-c7c-closed-workflow-recovery
 
 Crée un nouvel espace isolé :
 
-/workspace/LEA_Workspace/lcc-c7c-closed-workflow-recovery
-
-C7b-Q reste une référence de qualification et non une nouvelle base applicative.
+/workspace/LEA_Workspace/lcc-c7d-minimal-repair-integration
 
 Préserve intégralement tous les espaces précédents.
 
-2. Documentation et références
+La référence applicative C7c est désormais :
+
+* 666 cas JUnit.
+* 639 réussites.
+* 610 tests pytest et 29 sous-tests réussis.
+* 27 échecs historiques strictement identiques.
+* 117 tests ciblés réussis.
+* 57 tests PostgreSQL ciblés réussis.
+* 110 tests PostgreSQL cumulés réussis.
+* 168 tests réussis sans SDK Temporal, un test ignoré.
+* 16/16 historiques Temporal rejoués.
+* PostgreSQL 18.4.
+* Head Alembic 0004_orq_saga_outbox.
+* Catalogue applicatif inchangé : 32 tables, 17 triggers, 4 fonctions, 85 index et 390 contraintes.
+
+2. Documentation et composants existants
 
 Relis notamment :
 
 * C7A_ORQ_RECOVERY_AND_REPAIR_ANALYSIS.md
 * C7B_ACTIVE_WORKFLOW_RECOVERY.md
 * C7BQ_ACTIVE_WORKFLOW_RECOVERY_QUALIFICATION.md
-* C3D_POSTGRESQL_STATE_STORE.md
-* C3E_PROVISIONING_ACTIVITIES_V2.md
-* C4Q_TEMPORAL_REAL_QUALIFICATION.md
+* C7C_CLOSED_WORKFLOW_RECOVERY.md
+* C6_TEMPORAL_OUTBOX_DISPATCHER.md
 * C6Q_TEMPORAL_REAL_QUALIFICATION.md
 * LMC_SAGA_REPAIR_CONVERGENCE_ANALYSIS.md
 * LMC_WORKSPACE_INDEX.md
 * La roadmap canonique.
 
-Inspecte particulièrement les méthodes de récupération locale introduites dans C7b et les mécanismes de vérification d’identité Temporal introduits dans C6.
+Inspecte le véritable mécanisme Repair du LMC et son utilisation pour SDA, les connecteurs et les autres composants existants.
 
-Réutilise ces composants au maximum.
+Vérifie notamment les routes, services, contrats, permissions et mécanismes d’audit associés à :
 
-3. Objectif et proportionnalité
+* POST /v1/projects/{project_ref}/repair
+* GET /v1/projects/{project_ref}/operation-progress
+* LmcRepairProjectModal.tsx
+* project#repair
 
-C7c doit rester une petite micro-MR.
+Vérifie les noms et chemins exacts dans le code.
 
-Notre principal scénario de récupération automatique pendant un Workflow actif est désormais réellement qualifié.
+3. Vision du Repair
 
-C7c doit uniquement permettre une convergence locale lorsque le Workflow est déjà fermé et que les preuves durables nécessaires existent.
+Le Repair existant est principalement un outil de debug et de support destiné au développeur du LMC.
 
-Ne développe pas :
+Nous souhaitons lui offrir une expérience comparable pour Orq, sans créer un nouveau système de support.
 
-* Un nouveau moteur de récupération.
-* Un second orchestrateur.
-* Un service permanent de surveillance.
-* Une nouvelle Saga.
-* Un système de support indépendant.
-* Une nouvelle boucle de polling.
-* Un nouveau mécanisme complexe de retry.
+La priorité reste la récupération automatique des erreurs lorsque celle-ci est sûre.
 
-Privilégie un service applicatif minimal, réutilisable et testable.
+C7b a déjà démontré réellement cette récupération pendant un Workflow actif.
 
-Ce service pourra être invoqué ultérieurement par un mécanisme de récupération approprié. Ne prétends pas que la récupération est automatique tant qu’aucun déclencheur effectif n’existe.
+C7c fournit un service minimal de convergence locale après fermeture prouvée du Workflow, mais aucun déclencheur ne l’invoque encore.
 
-4. Préconditions de récupération
+C7d doit simplement raccorder les mécanismes résiduels nécessaires au Repair existant.
 
-Une récupération après fermeture ne doit être autorisée que si les preuves nécessaires sont réunies.
+Ne développe pas de plateforme de support indépendante, de nouveau moteur de récupération, de nouveau Worker ou de service permanent de surveillance.
 
-Vérifie notamment :
+4. Diagnostics Orq minimaux
 
-* L’identité exacte de l’opération.
-* Le projet interne.
-* La génération.
-* Le Workflow ID.
-* Le Run ID.
-* Le cluster et le namespace.
-* Le type de Workflow.
-* La correspondance avec les données autoritatives de la Saga et de l’outbox.
-* La fermeture effectivement vérifiée de l’exécution concernée.
-* La présence d’une identité distante confirmée.
-* La cohérence du snapshot accepté.
-* La compatibilité du mapping existant.
+Construis un modèle de lecture minimal permettant de distinguer :
 
-Réutilise l’adapter Temporal C6 pour la vérification d’identité lorsque pertinent.
-
-Une exécution introuvable, un historique expiré ou une indisponibilité Temporal ne constituent jamais une preuve de fermeture.
-
-La fermeture du Workflow ne prouve pas à elle seule que toutes les anciennes Activities ont cessé d’exécuter du code. Vérifie les protections CAS et les éventuelles courses avec des Activities tardives.
-
-Si les préconditions ne peuvent pas être démontrées, conserve l’état existant et un diagnostic exploitable.
-
-5. Récupération exclusivement locale
-
-C7c doit pouvoir traiter les cas suivants lorsque les preuves sont suffisantes :
-
-* Identité distante confirmée mais mapping absent.
-* Mapping déjà persisté mais finalisation incomplète.
-* Perte d’acquittement d’une transaction locale.
-* Preuve LOCAL_PERSISTENCE complète conservée après fermeture du Workflow.
-* Succès déjà persisté nécessitant uniquement une restitution idempotente.
-
-Réutilise les méthodes de récupération et les CAS de C7b/C3d.
-
-Ne duplique aucune logique de persistance métier.
-
-Conserve les protections de génération, d’identité et d’immuabilité.
-
-Ne contourne pas les contraintes des opérations terminales. Si une transition nécessaire n’est pas actuellement autorisée, expose précisément le blocage avant toute modification de ces contraintes.
-
-6. Situations non récupérables
-
-Le service ne doit pas transformer arbitrairement les situations suivantes en succès :
-
+* État métier de ProjectOrqSaga.
+* État de livraison de l’outbox.
+* Présence et cohérence du mapping.
+* LOCAL_PERSISTENCE.
 * UNKNOWN_OUTCOME.
-* Identité uniquement candidate.
-* Identité distante non confirmée.
-* Mapping conflictuel.
-* Collision globale d’identité.
+* TEMPORAL_START_UNCERTAIN.
+* Conflit d’identité ou de mapping.
 * Snapshot incompatible.
-* Workflow encore actif.
-* Fermeture non démontrable.
-* Historique Temporal expiré ou inaccessible.
-* Incohérence entre Saga, outbox et exécution distante.
+* Workflow dont l’état ne peut plus être vérifié.
 
-Ces cas doivent rester correctement identifiés pour le futur support.
+Réutilise les codes d’erreur et références de support existants.
 
-Ne développe pas leur résolution privilégiée pendant C7c.
+Ne crée aucun nouveau statut persisté lorsque les informations existantes suffisent.
 
-7. Conservation des garanties
+Un Workflow FAILED ne signifie pas nécessairement que la mutation Orq a échoué.
 
-La récupération locale ne doit jamais provoquer :
+Une Saga SUCCEEDED ne doit pas être dégradée par un simple problème d’acquittement de l’outbox.
 
-* Un nouveau POST Orq.
-* Un DELETE.
-* Un nouveau démarrage de Workflow.
-* Une nouvelle génération.
-* Une nouvelle Saga.
-* Un écrasement des preuves persistées.
-* Un changement arbitraire de l’identité distante.
-* Un contournement des protections CAS.
+Ne transforme pas une opération bloquée en simple provisioning en cours.
 
-Aucun gateway Orq ne doit être nécessaire à cette récupération.
+Prépare une projection réutilisable ultérieurement dans operation-progress et dans la modale Repair existante.
 
-La vérification Temporal éventuelle doit être exclusivement en lecture seule.
+Les consultations ordinaires doivent rester sans mutation et ne pas dépendre d’appels réseau à Temporal ou Orq.
+
+5. Lookup résiduel TEMPORAL_START_UNCERTAIN
+
+Réutilise les mécanismes de vérification d’identité développés dans C6.
+
+Lorsqu’une intervention Repair explicite concerne une livraison incertaine, autorise uniquement une recherche du Workflow exact.
+
+Vérifie :
+
+* Cluster.
+* Namespace.
+* Workflow ID.
+* Run ID observé.
+* Type de Workflow.
+* Task Queue.
+* Payload correspondant à l’opération.
+* Génération et références persistées.
+
+Lorsque l’exécution exacte est retrouvée et vérifiée, permets la récupération de son acquittement dans l’outbox par une transition CAS autorisée.
+
+La vérification distante reste exclusivement en lecture seule. Seule la persistance locale de l’acquittement vérifié peut modifier PostgreSQL.
+
+Inspecte les transitions actuelles de l’outbox, notamment depuis FAILED. Ne contourne aucune contrainte pour forcer STARTED.
+
+Respecte les leases, dispatch_version et protections contre les acquittements tardifs.
 
 Aucun verrou SQL ne doit être conservé pendant les RPC Temporal.
 
-Ne transforme pas un ancien Workflow FAILED en Workflow COMPLETED. Son historique reste inchangé.
+Si le Workflow est absent, inaccessible, hors rétention ou incompatible, conserve l’incertitude et un diagnostic exploitable.
 
-Une convergence locale réussie peut permettre de finaliser correctement l’état métier dans PostgreSQL, sous réserve des transitions autorisées, indépendamment du résultat historique du Workflow.
+Ne déclenche jamais un nouveau start pour résoudre TEMPORAL_START_UNCERTAIN.
 
-Documente clairement cette distinction.
+6. Invocation du service C7c
 
-8. Concurrence et sécurité
+Raccorde le service OrqProjectPostClosureRecoveryService au mécanisme Repair existant.
 
-Vérifie les interactions avec :
+Réutilise directement :
 
-* Le Store C3d.
-* La récupération pendant Workflow actif C7b.
-* Le Dispatcher C6.
-* Le service d’enqueue C5.
-* Une éventuelle Activity tardive.
-* Deux tentatives concurrentes de récupération.
+* TemporalSdkClosedWorkflowObserver.
+* load_postclosure_recovery_target().
+* OrqProjectLocalConvergenceService.
+* Les protections CAS C7b/C7c.
 
-Réutilise les ordres de verrouillage existants.
+Lorsque la livraison a d’abord nécessité une récupération d’acquittement, vérifie les nouvelles préconditions avant d’invoquer C7c.
 
-Toutes les transitions doivent revalider les preuves et préconditions dans la transaction d’écriture.
+Ne duplique aucune logique de récupération locale.
 
-Aucune donnée obsolète provenant d’une vérification antérieure ne doit permettre d’écraser un état plus récent.
+La récupération doit rester strictement conditionnée à la fermeture prouvée du Workflow, à l’identité distante confirmée et à la cohérence des preuves persistées.
 
-N’introduis aucune nouvelle permission SpiceDB pendant C7c.
+Le service ne doit jamais :
 
-Le futur appel depuis le Repair devra rester protégé par les permissions existantes et audité conformément aux conventions du LMC.
+* Effectuer un POST Orq.
+* Effectuer un DELETE.
+* Démarrer, signaler ou reset un Workflow.
+* Créer une nouvelle Saga.
+* Allouer une nouvelle génération.
+* Promouvoir une identité uniquement candidate.
+* Écraser un mapping conflictuel.
+* Affaiblir une preuve persistée.
 
-9. Tests ciblés
+Préserve le comportement des opérations terminales.
 
-Utilise PostgreSQL 18.4 réel et isolé, avec un adapter Temporal factice lorsque nécessaire.
+Le résultat historique du Workflow Temporal reste inchangé.
+
+7. Intégration au Repair existant
+
+Réutilise le point d’entrée existant et les conventions du LMC.
+
+Ne crée aucun endpoint Repair parallèle.
+
+Ne modifie pas le frontend pendant C7d : son raccordement sera effectué pendant C8.
+
+L’intervention Orq doit être explicite et ciblée sur le projet et l’opération concernés.
+
+Vérifie que le comportement des réparations SDA, Looker, Keycloak et connecteurs reste inchangé.
+
+Le Repair doit restituer simplement :
+
+* L’état observé.
+* Le diagnostic.
+* L’action effectuée, le cas échéant.
+* Le résultat de cette action.
+* Les éventuelles limitations nécessitant une intervention manuelle.
+
+Il ne doit pas prétendre avoir réparé une situation qui reste incertaine.
+
+8. Autorisation et audit
+
+Réutilise la permission existante project#repair.
+
+Vérifie le périmètre projet et l’identité authentifiée de l’acteur.
+
+Préserve la distinction entre les permissions de provisioning, de consultation et de réparation.
+
+N’étends pas implicitement les droits de provisioning à travers Repair.
+
+Réutilise les mécanismes d’audit existants pour les interventions manuelles.
+
+L’audit doit permettre d’identifier l’intention, l’acteur, l’opération et le résultat lorsque les conventions existantes le permettent.
+
+Ne développe pas un système d’audit parallèle.
+
+Si une garantie d’audit nécessaire ne peut pas être obtenue avec les mécanismes actuels, expose le blocage plutôt que de contourner la politique existante.
+
+N’expose aucun credential, token, DSN, payload brut ou exception fournisseur.
+
+9. Récupération automatique et proportionnalité
+
+Ne développe pas de nouveau processus permanent pour déclencher C7c automatiquement.
+
+La récupération pendant Workflow actif, qualifiée dans C7b-Q, reste notre mécanisme principal.
+
+Pour les Workflows déjà fermés, le raccordement manuel à Repair constitue une première solution résiduelle acceptable.
+
+Documente honnêtement que cette récupération post-fermeture n’est pas automatique.
+
+Si un mécanisme automatique simple peut être ajouté ultérieurement en réutilisant un composant existant, documente cette possibilité sans l’implémenter pendant C7d.
+
+Ne ralentis pas l’intégration fonctionnelle pour résoudre tous les cas exceptionnels théoriques.
+
+10. Tests ciblés
+
+Utilise PostgreSQL et SpiceDB réels et isolés lorsque pertinent, ainsi qu’un adapter Temporal factice.
 
 Teste notamment :
 
-* Fermeture exacte confirmée et preuve LOCAL_PERSISTENCE complète.
-* Mapping absent.
-* Mapping déjà présent.
-* Finalisation incomplète.
-* Succès déjà commité.
-* Perte d’acquittement local.
-* Deux récupérations concurrentes.
-* Interaction avec une ancienne Activity.
-* Workflow encore actif.
-* Workflow introuvable.
+* Repair autorisé sur le projet concerné.
+* Refus hors périmètre.
+* Refus sans permission Repair.
+* Indisponibilité SpiceDB.
+* Diagnostics métier et livraison.
+* TEMPORAL_START_UNCERTAIN avec Workflow exact retrouvé.
+* Acquittement local récupéré sans nouveau start.
+* Workflow absent.
 * Historique expiré.
-* Mauvais Run ID.
-* Incohérence de génération.
-* Snapshot incompatible.
-* Identité candidate uniquement.
-* UNKNOWN_OUTCOME.
-* Conflit de mapping.
-* Indisponibilité Temporal.
-* Aucun appel Orq.
-* Aucun nouveau start.
-* Absence de nouvelle Saga.
-* Absence de modification des preuves autoritatives.
+* Identité incompatible.
+* Lease actif ou version devenue obsolète.
+* Invocation C7c avec fermeture prouvée.
+* Mapping récupéré correctement.
+* Finalisation idempotente.
+* UNKNOWN_OUTCOME non contourné.
+* Deux interventions concurrentes.
+* Audit des interventions autorisées.
+* Aucun POST Orq.
+* Aucun nouveau start Temporal.
+* Aucune nouvelle Saga ou génération.
+* Absence de fuite d’informations sensibles.
+* Non-régression du Repair historique.
 
-Distingue les transactions PostgreSQL réellement exécutées des comportements Temporal simulés.
+Ne répète pas inutilement tous les tests déjà réalisés dans C7b et C7c.
 
-Ne multiplie pas inutilement les tests redondants avec C7b.
+Qualifie les nouvelles interfaces et les interactions entre les composants.
 
-10. Non-régression
+11. Non-régression
 
-Notre référence applicative est C7b :
+Utilise C7c comme référence :
 
-* 629 cas JUnit.
-* 602 réussites.
+* 666 cas JUnit.
+* 639 réussites.
 * 27 échecs historiques identiques.
 * PostgreSQL 18.4.
 * Head Alembic 0004_orq_saga_outbox.
-* 32 tables, 17 triggers, 4 fonctions, 85 index et 390 contraintes.
+* Catalogue applicatif inchangé.
 
-Notre référence de qualification comprend également les 16 historiques Temporal rejoués avec succès et la qualification ACCEPTED de C7b-Q.
+Exécute les tests ciblés, les tests d’intégration pertinents, la suite complète, la compilation Python et pip check.
 
-Exécute les tests ciblés, les tests PostgreSQL pertinents, les tests cumulés, la suite complète, la compilation Python et pip check.
+Vérifie les node IDs et traces normalisées des échecs historiques.
 
-Vérifie le fonctionnement sans SDK Temporal lorsque pertinent.
+Préserve le fonctionnement normal du LMC sans SDK Temporal.
 
-Compare précisément les échecs historiques.
+Les 16 historiques Temporal précédemment qualifiés restent notre référence de replay. Si aucun Workflow n’est modifié, ne développe pas une nouvelle campagne de replay disproportionnée.
 
-Aucune nouvelle migration n’est attendue.
-
-Ne modifie pas le Workflow V2 si C7c peut être implémentée indépendamment, ce qui est préférable.
-
-11. Limitation du périmètre
-
-Ne commence pas :
-
-* C7d : diagnostics et lookup résiduel.
-* L’intégration au Repair.
-* L’API HTTP de provisioning.
-* La projection Orq dans operation-progress.
-* Le frontend.
-* La résolution privilégiée.
-* Le provisioning des autres ressources Orq.
-
-Ne réalise aucune qualification distante pendant C7c.
-
-Il n’est pas nécessaire de recréer une grande campagne de qualification isolée pour cette micro-MR. Propose plutôt d’intégrer sa validation réelle pertinente à la future qualification fonctionnelle du LMC.
+Aucune migration n’est attendue.
 
 12. Contraintes impératives
 
 * Aucune opération Git ou GitLab.
 * Aucun déploiement.
-* Aucun appel distant Temporal ou Orq.
-* Aucune modification Kubernetes.
+* Aucun appel distant Temporal ou Orq pendant C7d.
 * Aucun serveur Temporal local.
 * Aucune installation de Temporal CLI.
+* Aucune modification Kubernetes.
 * Aucune modification des ressources Docker existantes.
 * Seules les ressources temporaires isolées nécessaires aux tests sont autorisées.
 * Aucune modification de Docker Compose ou des Dockerfiles.
@@ -275,47 +288,51 @@ Il n’est pas nécessaire de recréer une grande campagne de qualification isol
 * Aucune modification des configurations VS Code.
 * Aucune modification du pont Alembic.
 * Aucun changement de la procédure habituelle de lancement du LMC.
+* Aucune nouvelle UI.
+* Aucune nouvelle plateforme de support.
 * Préservation intégrale des espaces précédents.
 
 13. Documentation et restitution
 
 Crée une documentation technique en anglais :
 
-documentation/C7C_CLOSED_WORKFLOW_RECOVERY.md
+documentation/C7D_MINIMAL_REPAIR_INTEGRATION.md
 
 Mets à jour l’index canonique et la roadmap.
 
-Pour chaque fichier et symbole créé ou modifié, documente son rôle, son comportement avant/après, les composants réutilisés, les décisions techniques et les alternatives envisagées.
+Documente chaque fichier et symbole modifié, le comportement avant/après, les composants réutilisés, les choix techniques et les alternatives envisagées.
 
 Présente-moi en français :
 
-* Le service minimal implémenté.
-* Les préconditions de récupération.
-* Les preuves nécessaires.
-* Les protections contre les Activities tardives.
-* Les transitions métier autorisées.
-* Les scénarios récupérables.
-* Les scénarios restant bloqués.
+* L’intégration au Repair existant.
+* Les diagnostics disponibles.
+* Les actions réellement réalisables.
+* Les permissions et mécanismes d’audit.
+* Les protections contre les doublons.
 * Les résultats des tests.
 * Les résultats de non-régression.
 * Les limitations restantes.
-* Le déclencheur de récupération restant éventuellement à raccorder.
-* Le périmètre minimal proposé pour C7d.
 
-Conserve explicitement dans la roadmap les travaux encore nécessaires avant C8 :
+Ne lance pas de qualification distante spécifique C7d-Q. Les vérifications réelles pertinentes pourront être intégrées à la future qualification fonctionnelle depuis le LMC.
 
-* Endpoint HTTP de provisioning utilisant C5.
-* Projection Orq dans operation-progress.
-* Suivi par operation_ref.
-* Permissions de lecture existantes.
-* Intégration minimale au Repair existant.
+14. Étape suivante obligatoire
 
-Le Repair reste un outil résiduel de debug et d’intervention manuelle destiné au développeur. Il ne doit pas devenir le mécanisme principal de récupération.
+Après C7d, nous devons passer directement à C7e — Provisioning API and Operation Progress Integration.
 
-Notre priorité reste la parité fonctionnelle complète avec le Mock LMC depuis le véritable LMC lancé localement.
+C7e devra impérativement implémenter :
 
-Nous avons suffisamment investi dans les fondations. Je souhaite maintenant que les prochaines étapes restent ciblées et permettent d’avancer rapidement vers l’intégration utilisateur.
+* L’endpoint HTTP de provisioning utilisant C5.
+* La projection Orq dans operation-progress.
+* Le suivi par operation_ref.
+* Les permissions de consultation existantes.
+* Les contrats nécessaires au frontend C8.
 
-Tu peux commencer C7c.
+Ces composants n’ont pas été implémentés pendant C7a, qui était uniquement documentaire.
 
-Ne commence pas C7d sans mon accord.
+Ne les oublie pas dans la roadmap.
+
+Notre priorité absolue est désormais d’atteindre rapidement la parité fonctionnelle complète avec le Mock LMC depuis le véritable LMC lancé localement.
+
+Le Repair doit rester un outil simple de debug, et non devenir le centre de notre architecture.
+
+Tu peux commencer C7d. Ne commence pas C7e sans mon accord.
