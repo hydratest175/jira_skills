@@ -1,20 +1,15 @@
-Je valide globalement ton analyse, avec les arbitrages suivants :
+Je confirme avoir supprimé manuellement dans Orq le projet réel utilisé pour notre qualification. Je n’ai effectué aucune autre modification.
 
-* Éligibilité : tout utilisateur actif disposant effectivement du Product Access Engineering Companion dans le projet, indépendamment de son rôle administratif ou de ses droits sur les autres produits. Réutilise strictement le mécanisme LMC/SpiceDB existant.
-* Identity globale par utilisateur, réutilisable entre projets.
-* Renseigne les trois champs Orq : external_id stable basé sur Keycloak, display name et email provenant du modèle utilisateur existant. Vérifie les champs sources exacts. Une modification d’email ne doit pas créer une nouvelle Identity.
-* Adoption uniquement après vérification exacte de l’identité et de son rattachement légitime.
-* HTTPX et configuration TLS déjà qualifiée.
-* Clés temporaires : scopes minimaux, TTL court, nettoyage automatique des orphelins, aucun token persisté.
-* Permission explicite de provisioning, réutilisant les rôles et périmètres existants, distincte du Product Access qui détermine l’éligibilité.
-* Aucun rollback des succès partiels ni suppression d’Identity lors du retrait d’un projet.
+Consigne cette confirmation dans les preuves et la mémoire projet. Conserve la Saga, le mapping et l’outbox historiques intacts. Ne réutilise pas cette base de qualification pour les futurs provisionings.
 
-Concernant PLAN/APPLY, je souhaite concevoir dès maintenant une logique de décision commune aux deux modes. PLAN doit rester strictement non mutatif ; APPLY doit revalider l’état avant exécution. Propose une intégration progressive sans dupliquer la logique métier. Le PLAN global dans l’interface pourra être ajouté ultérieurement.
+Je valide ID-CRED-1. Passe à ID-CRED-2 depuis le workspace cumulatif actuel.
 
-Je valide le Workflow Identity versionné séparément, avec mutualisation maximale des fondations C5/C6 et possibilité d’orchestration globale future via un seul bouton.
+Implémente la migration additive et les modèles de persistance nécessaires aux Identities globales, aux opérations par projet, aux états individuels et au suivi des clés temporaires.
 
-Commence uniquement ID-CRED-1 : contrats, Protocols et fakes, depuis la dernière référence cumulative qualifiée.
+Réutilise au maximum nos mécanismes existants. Aucun stockage de token brut, aucune duplication des utilisateurs, rôles ou Product Access du LMC.
 
-Adapte le découpage si mes arbitrages le nécessitent. Signale les garanties fournisseur non démontrées.
+Qualifie les migrations, contraintes d’unicité, intégrité référentielle et non-régression sur PostgreSQL 18.4 réel, en réutilisant notre runner documenté.
 
-Toutes nos contraintes permanentes restent applicables. Aucun appel distant ni migration à cette étape. Teste, documente et actualise la mémoire projet avant ID-CRED-2.
+Les garanties fournisseur encore non démontrées doivent rester explicitement ouvertes.
+
+Toutes nos contraintes permanentes restent applicables. Documente les résultats et actualise la mémoire projet. Ne commence pas ID-CRED-3 sans validation.
