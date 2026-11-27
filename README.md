@@ -1,13 +1,23 @@
-Reprenons le chantier Identity depuis ID-6.
+Je valide ID-7 sur son périmètre local.
 
-Termine le Dispatcher Identity autonome et l’enchaînement automatique projet → Identities depuis un seul APPLY utilisateur.
+Passe à ID-Q, première phase : qualification intégrée depuis le véritable LMC avec Orq simulé et Temporal préproduction réel.
 
-Réutilise les fondations existantes sans modifier le Workflow projet V2.
+Réutilise LOCAL_IDENTITY_INTEGRATED_PREPARATION.md et nos procédures de qualification précédentes.
 
-Prépare ensuite le lancement du véritable LMC pour qualifier le parcours intégré avec Orq simulé : PLAN, APPLY, Product Access, progression individuelle et globale, réutilisation des Identities entre projets et récupération après interruption.
+Je t’autorise à préparer et lancer la pile locale isolée PostgreSQL 18.4/Alembic 0005. Prépare également le preflight Temporal read-only sur le tunnel que j’ouvrirai manuellement. Attends mon autorisation avant de lancer les Workflows synthétiques distants.
 
-Réutilise notre procédure de lancement habituelle et une base PostgreSQL 18.4 isolée avec la migration 0005.
+Je souhaite effectuer depuis le frontend :
 
-Toutes nos règles permanentes restent applicables. Teste, documente et actualise la mémoire projet.
+* Création d’un projet et ajout d’utilisateurs avec différents Product Access.
+* PLAN sans mutation.
+* APPLY unique avec enchaînement automatique projet → Identities.
+* Vérification de la progression et des trois champs Identity.
+* Réutilisation d’une Identity entre deux projets.
 
-Aucun appel distant sans autorisation. Ne commence ni les Budgets ni C9.
+Qualifie également la récupération après interruption, les succès partiels et le nettoyage des clés temporaires.
+
+Utilise exclusivement des données synthétiques pour les échanges de qualification. Aucun appel Orq réel.
+
+Guide-moi pour les manipulations nécessaires. Préserve nos environnements historiques et notre procédure habituelle de lancement.
+
+Documente les résultats et actualise la mémoire projet. Ne commence ni la qualification Orq réelle, ni les Budgets, ni C9.
