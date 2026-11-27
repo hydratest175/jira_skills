@@ -1,18 +1,15 @@
-Je valide la qualification intégrée avec Temporal réel et Orq simulé.
+Je valide ton plan et l’explication du premier UNKNOWN_OUTCOME.
 
-Avant de passer au premier provisioning Orq réel, explique brièvement la cause du premier UNKNOWN_OUTCOME et confirme que le problème ne remet pas en cause la qualification obtenue.
+Prépare l’environnement isolé pour notre premier provisioning Orq réel depuis la référence lcc-c8-secure-standard-launch.
 
-Prépare ensuite le premier provisioning réel d’un projet Orq depuis le véritable LMC :
+Je valide le nom de projet temporaire proposé. Conserve les anciennes qualifications et réutilise les procédures déjà validées.
 
-* Confirme le workspace applicatif de référence.
-* Utilise un nouveau projet de test clairement identifiable.
-* Isole strictement les anciennes opérations et les données du fake-Orq.
-* Vérifie la configuration et les permissions Orq nécessaires.
-* Prépare la traçabilité et le nettoyage manuel des ressources créées.
-* Conserve notre procédure habituelle de lancement.
+Indique-moi précisément où renseigner la configuration Orq et la clé de management, sans exposer ni journaliser cette dernière. Vérifions ensemble l’environnement cible, le BL, la sensibilité et le nom canonique attendu.
 
-Réutilise les qualifications existantes sans les répéter inutilement.
+Prépare ensuite le preflight Orq en lecture seule.
 
-Donne-moi uniquement les prérequis, les interventions nécessaires de ma part et les critères de réussite.
+Après sa validation, nous autoriserons une seule exécution réelle depuis l’interface, sans retry mutatif automatique. En cas d’incertitude, arrête immédiatement la campagne.
 
-Aucune mutation Orq réelle avant mon autorisation. Ne commence pas C9.
+Je réaliserai le nettoyage manuel après collecte des preuves.
+
+Ne répète pas les qualifications déjà acceptées. Actualise la mémoire projet et ne commence pas C9.
