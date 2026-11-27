@@ -1,21 +1,15 @@
-Je valide ton plan.
+Je valide la préparation locale.
 
-Je t’autorise à arrêter la pile temporaire C8 sans supprimer ses volumes, à préparer une nouvelle pile locale isolée PostgreSQL 18.4/SpiceDB, à qualifier le pont Alembic, à installer le SDK Temporal verrouillé et à adapter le harness fake-Orq.
+Je t’autorise à arrêter et remplacer les conteneurs locaux identifiés, uniquement après avoir vérifié leur appartenance au LMC et la préservation de toutes leurs données, volumes et configurations nécessaires à leur restauration.
 
-Avant d’exécuter les scripts habituels, vérifie qu’ils ne ciblent aucune base, aucun volume ni aucun service existant. En cas de conflit, arrête-toi.
+Ne réutilise jamais le volume PostgreSQL 16.4 avec PostgreSQL 18.4 et ne réinitialise aucune base existante.
 
-Conserve notre procédure habituelle de lancement et toutes les contraintes de project-memory.
+Tu peux réutiliser temporairement les paramètres nécessaires du .env historique, après vérification qu’ils ciblent bien les ressources locales prévues et sans exposer ni dupliquer les secrets.
 
-Pour le premier provisioning intégré :
+Exécute ensuite la procédure habituelle 02/03 depuis C8 reviewed, sans modifier les scripts.
 
-* Utilise exclusivement un projet synthétique et un gateway Orq factice, sans possibilité de fallback réel.
-* Vérifie l’absence d’anciennes opérations réclamables.
-* Crée l’opération depuis l’interface, Dispatcher arrêté.
-* Avant son activation, vérifie qu’une seule opération approuvée est réclamable et qu’aucune autre soumission ne peut intervenir pendant le test.
-* Critères de réussite : UI SUCCEEDED, Saga SUCCEEDED, outbox STARTED, mapping cohérent, Temporal COMPLETED, exactement un POST Orq simulé et zéro DELETE.
+Qualifie la nouvelle pile standard et vérifie à nouveau Alembic, SpiceDB et l’absence d’opérations réclamables.
 
-Avance directement sur les préparatifs locaux. Lorsque mon intervention est nécessaire pour le tunnel Temporal, donne-moi les commandes exactes.
+Lorsque tout est prêt, donne-moi les commandes nécessaires pour établir le tunnel Temporal.
 
-Attends mon autorisation avant la qualification distante.
-
-Documente les résultats et actualise la mémoire projet. Ne commence pas C9.
+Toutes nos contraintes permanentes restent applicables. Aucun appel Orq réel ni démarrage de Workflow sans mon accord.
