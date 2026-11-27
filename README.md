@@ -1,15 +1,21 @@
-Je valide la préparation locale.
+Les secrets précédemment exposés ont été renouvelés de mon côté.
 
-Je t’autorise à arrêter et remplacer les conteneurs locaux identifiés, uniquement après avoir vérifié leur appartenance au LMC et la préservation de toutes leurs données, volumes et configurations nécessaires à leur restauration.
+Je souhaite maintenant poursuivre notre qualification sans ouvrir un chantier de sécurité disproportionné.
 
-Ne réutilise jamais le volume PostgreSQL 16.4 avec PostgreSQL 18.4 et ne réinitialise aucune base existante.
+Je t’autorise à apporter les modifications strictement nécessaires au Dockerfile et au générateur de configuration pour :
 
-Tu peux réutiliser temporairement les paramètres nécessaires du .env historique, après vérification qu’ils ciblent bien les ressources locales prévues et sans exposer ni dupliquer les secrets.
+* Utiliser les secrets BuildKit sans exposer les nouveaux credentials dans les logs, les couches Docker ou le cache.
+* Générer une configuration de qualification fake-only, sans clé Orq réelle.
+* Préserver notre procédure habituelle de lancement 02/03.
 
-Exécute ensuite la procédure habituelle 02/03 depuis C8 reviewed, sans modifier les scripts.
+Isole cette correction du développement fonctionnel Orq. Documente les éventuelles améliorations de sécurité restantes dans une future MR dédiée.
 
-Qualifie la nouvelle pile standard et vérifie à nouveau Alembic, SpiceDB et l’absence d’opérations réclamables.
+Vérifie également le périmètre résiduel d’exposition des anciens secrets et propose un nettoyage ciblé, sans supprimer de cache global ni de ressources existantes.
 
-Lorsque tout est prêt, donne-moi les commandes nécessaires pour établir le tunnel Temporal.
+Termine ensuite le lancement standard du LMC, vérifie le bon fonctionnement de la pile et prépare notre provisioning intégré avec Temporal réel et Orq simulé.
 
-Toutes nos contraintes permanentes restent applicables. Aucun appel Orq réel ni démarrage de Workflow sans mon accord.
+Lorsque tout est prêt, donne-moi les commandes pour établir le tunnel Temporal.
+
+Toutes nos contraintes permanentes restent applicables. Actualise la documentation et la mémoire projet.
+
+Évite les investigations redondantes : notre priorité est désormais d’avancer sur l’implémentation fonctionnelle complète.
