@@ -1,31 +1,20 @@
-Nous reprenons cette session après avoir temporairement poursuivi le développement dans l’ancienne.
+Je valide globalement ton analyse, avec les arbitrages suivants :
 
-Depuis ta dernière intervention, C8 a été revue et corrigée, le lancement standard sécurisé a été qualifié et le premier provisioning réel d’un projet Orq depuis le LMC a réussi : Temporal COMPLETED, Saga/UI SUCCEEDED, mapping exact, un seul POST.
+* Éligibilité : tout utilisateur actif disposant effectivement du Product Access Engineering Companion dans le projet, indépendamment de son rôle administratif ou de ses droits sur les autres produits. Réutilise strictement le mécanisme LMC/SpiceDB existant.
+* Identity globale par utilisateur, réutilisable entre projets.
+* Renseigne les trois champs Orq : external_id stable basé sur Keycloak, display name et email provenant du modèle utilisateur existant. Vérifie les champs sources exacts. Une modification d’email ne doit pas créer une nouvelle Identity.
+* Adoption uniquement après vérification exacte de l’identité et de son rattachement légitime.
+* HTTPX et configuration TLS déjà qualifiée.
+* Clés temporaires : scopes minimaux, TTL court, nettoyage automatique des orphelins, aucun token persisté.
+* Permission explicite de provisioning, réutilisant les rôles et périmètres existants, distincte du Product Access qui détermine l’éligibilité.
+* Aucun rollback des succès partiels ni suppression d’Identity lors du retrait d’un projet.
 
-La mémoire projet a été actualisée.
+Concernant PLAN/APPLY, je souhaite concevoir dès maintenant une logique de décision commune aux deux modes. PLAN doit rester strictement non mutatif ; APPLY doit revalider l’état avant exécution. Propose une intégration progressive sans dupliquer la logique métier. Le PLAN global dans l’interface pourra être ajouté ultérieurement.
 
-Relis les instructions, l’état courant et le handoff dans /workspace/LEA_Workspace/project-memory/. Consulte uniquement les documents nécessaires pour comprendre les changements intervenus depuis ta dernière mission.
+Je valide le Workflow Identity versionné séparément, avec mutualisation maximale des fondations C5/C6 et possibilité d’orchestration globale future via un seul bouton.
 
-Identifie la dernière référence applicative cumulative, incluant les correctifs C8, sécurité et TLS. Vérifie également l’état du nettoyage de la qualification réelle précédente.
+Commence uniquement ID-CRED-1 : contrats, Protocols et fakes, depuis la dernière référence cumulative qualifiée.
 
-Nous passons maintenant à l’intégration des Identities Orq et des clés API temporaires.
+Adapte le découpage si mes arbitrages le nécessitent. Signale les garanties fournisseur non démontrées.
 
-Analyse le Mock LMC conjointement avec les mécanismes existants du véritable LMC.
-
-Exigences structurantes :
-
-* Le LMC reste la source de vérité pour les utilisateurs, rôles, permissions et appartenances aux projets.
-* Chaque Identity Orq repose sur un utilisateur LMC existant, avec un mapping stable et une réutilisation entre projets.
-* Le retrait d’un utilisateur d’un projet ne doit pas affecter ses autres projets.
-* Aucun système parallèle de gestion des utilisateurs ou des permissions.
-* Les clés API temporaires doivent respecter le cycle de vie du Mock, sans persistance de secrets bruts.
-
-Étudie les mappings nécessaires, l’idempotence, la concurrence, la récupération après interruption et l’intégration dans notre architecture Temporal existante.
-
-Propose un découpage minimal en micro-MR avec les critères d’acceptation. Capitalise sur les fondations existantes sans les reconstruire.
-
-Toutes nos règles permanentes restent applicables. C9 reste ouvert.
-
-Évite les explorations redondantes et la multiplication inutile des sous-agents.
-
-Présente-moi ta compréhension des changements récents, ton plan technique et les éventuelles décisions à arbitrer. Attends ma validation avant toute implémentation ou mutation distante.
+Toutes nos contraintes permanentes restent applicables. Aucun appel distant ni migration à cette étape. Teste, documente et actualise la mémoire projet avant ID-CRED-2.
