@@ -1,15 +1,13 @@
-Nouvelle exigence métier pour le futur chantier Budgets, au-delà de la parité Mock LMC :
+Reprenons le chantier Identity depuis ID-6.
 
-* Budget Project : plafond financier configurable, période de renouvellement et plafond de requêtes par minute (RPM).
-* Budget Identity : uniquement un plafond de requêtes par minute, sans plafond financier individuel.
-* Aucun plafond de tokens à exposer dans le périmètre actuel.
+Termine le Dispatcher Identity autonome et l’enchaînement automatique projet → Identities depuis un seul APPLY utilisateur.
 
-Privilégier les mécanismes natifs Orq : limits.amount, limits.period et rate_limit.requests_per_minute.
+Réutilise les fondations existantes sans modifier le Workflow projet V2.
 
-Les deux niveaux doivent s’appliquer simultanément. Tenir compte du caractère global des Identities et empêcher les modifications de limites globales par un Project Manager non habilité.
+Prépare ensuite le lancement du véritable LMC pour qualifier le parcours intégré avec Orq simulé : PLAN, APPLY, Product Access, progression individuelle et globale, réutilisation des Identities entre projets et récupération après interruption.
 
-Vérifier ultérieurement les contrats API, les permissions, l’attribution runtime des requêtes et les capacités de notre instance Orq.
+Réutilise notre procédure de lancement habituelle et une base PostgreSQL 18.4 isolée avec la migration 0005.
 
-Documente cette décision dans project-memory et adapte la roadmap Budgets.
+Toutes nos règles permanentes restent applicables. Teste, documente et actualise la mémoire projet.
 
-Ne commence pas son implémentation maintenant. Poursuis la mission Identity en cours.
+Aucun appel distant sans autorisation. Ne commence ni les Budgets ni C9.
