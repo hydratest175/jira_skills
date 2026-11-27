@@ -1,22 +1,23 @@
-Je valide CRED-4 sur son périmètre local. Passe à ID-5 depuis lcc-cred-4-identity-gateways-key-lifecycle.
+Je valide ID-5 sur son périmètre local.
 
-Implémente le Workflow Identity V1, ses Activities et son Worker dédié en réutilisant au maximum nos fondations Temporal, Store, Saga et outbox existantes.
+Passe à ID-6 depuis lcc-id-5-identity-workflow-v1, dans un workspace cumulatif isolé.
 
-Vérifie particulièrement :
+Implémente l’intégration API/frontend des Identities et le raccordement transactionnel enqueue/outbox/Dispatcher nécessaire au Workflow Identity V1.
 
-* Revalidation du Product Access Engineering Companion avant mutation.
-* Convergence vers une Identity unique entre projets concurrents.
-* Création, utilisation et nettoyage des clés temporaires dans une même Activity, sans token ni profil utilisateur dans l’historique Temporal.
-* Récupération automatique après interruption, sans double mutation ni perte des succès partiels.
-* Nettoyage borné des clés orphelines, indépendant du Repair.
-* Compatibilité avec notre future orchestration globale du provisioning.
+Points de vigilance :
 
-Préserve le Workflow projet V2 et la logique commune PLAN/APPLY.
+* Réutiliser les utilisateurs et Product Access existants du LMC.
+* Distinguer permission de provisioning et éligibilité utilisateur.
+* Exposer PLAN/APPLY avec les garanties déjà définies, en présentant le PLAN local comme prévisionnel.
+* Réutiliser la section Orq et le suivi de progression existants, sans multiplier les boutons ni reconstruire une interface parallèle.
+* Afficher les résultats individuels et agrégés, notamment les succès partiels et les incertitudes.
+* Préparer l’orchestration globale via un seul bouton, sans modifier le Workflow projet V2 déjà qualifié.
+* Conserver Repair comme outil résiduel de diagnostic/support.
 
-Les capacités Orq non démontrées doivent rester désactivées. Prépare leur qualification contractuelle avant ID-Q.
+Qualifie les permissions, la concurrence, la livraison Temporal simulée, les contrats API, le build frontend et la non-régression.
 
-Qualifie localement avec PostgreSQL réel, Orq simulé et replay des historiques existants. Réutilise le runbook et évite les investigations redondantes.
+Les capacités fournisseur non démontrées restent désactivées.
 
-Actualise la documentation et la mémoire projet. Toutes nos règles permanentes restent applicables.
+Toutes nos règles permanentes restent applicables. Réutilise le runbook, documente et actualise la mémoire projet.
 
-Aucun appel distant. Ne commence pas ID-6.
+Aucun appel distant. Ne commence pas ID-Q.
