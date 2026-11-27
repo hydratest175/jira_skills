@@ -1,21 +1,21 @@
-Je valide C8 sur le périmètre fonctionnel retenu. Nous continuons dans cette même session.
+Je valide ton plan.
 
-Passons à la qualification du lancement standard du véritable LMC, avant notre premier provisioning intégré.
+Je t’autorise à arrêter la pile temporaire C8 sans supprimer ses volumes, à préparer une nouvelle pile locale isolée PostgreSQL 18.4/SpiceDB, à qualifier le pont Alembic, à installer le SDK Temporal verrouillé et à adapter le harness fake-Orq.
 
-Prépare un plan opérationnel pour :
+Avant d’exécuter les scripts habituels, vérifie qu’ils ne ciblent aucune base, aucun volume ni aucun service existant. En cas de conflit, arrête-toi.
 
-* Réutiliser ou nettoyer la pile temporaire actuelle.
-* Qualifier le pont Alembic et PostgreSQL 18.4.
-* Vérifier le schéma SpiceDB.
-* Conserver notre procédure habituelle de lancement du LMC.
-* Configurer le Worker et le Dispatcher sur la même Task Queue dédiée.
-* Réutiliser notre connexion Temporal préproduction.
-* Réaliser un provisioning depuis l’interface avec Orq simulé.
+Conserve notre procédure habituelle de lancement et toutes les contraintes de project-memory.
 
-Vérifie particulièrement que l’activation du Dispatcher ne risque pas de traiter accidentellement les anciennes opérations PENDING.
+Pour le premier provisioning intégré :
 
-Réutilise les procédures déjà qualifiées et la mémoire projet. Toutes nos contraintes permanentes restent applicables.
+* Utilise exclusivement un projet synthétique et un gateway Orq factice, sans possibilité de fallback réel.
+* Vérifie l’absence d’anciennes opérations réclamables.
+* Crée l’opération depuis l’interface, Dispatcher arrêté.
+* Avant son activation, vérifie qu’une seule opération approuvée est réclamable et qu’aucune autre soumission ne peut intervenir pendant le test.
+* Critères de réussite : UI SUCCEEDED, Saga SUCCEEDED, outbox STARTED, mapping cohérent, Temporal COMPLETED, exactement un POST Orq simulé et zéro DELETE.
 
-Ne commence pas C9 concernant la résolution privilégiée UNKNOWN_OUTCOME.
+Avance directement sur les préparatifs locaux. Lorsque mon intervention est nécessaire pour le tunnel Temporal, donne-moi les commandes exactes.
 
-Donne-moi le plan minimal, les éventuels blocages et les interventions nécessaires de ma part. Attends mon accord avant toute exécution distante ou modification d’environnement.
+Attends mon autorisation avant la qualification distante.
+
+Documente les résultats et actualise la mémoire projet. Ne commence pas C9.
