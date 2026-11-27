@@ -1,23 +1,15 @@
-Je valide ID-5 sur son périmètre local.
+Nouvelle exigence métier pour le futur chantier Budgets, au-delà de la parité Mock LMC :
 
-Passe à ID-6 depuis lcc-id-5-identity-workflow-v1, dans un workspace cumulatif isolé.
+* Budget Project : plafond financier configurable, période de renouvellement et plafond de requêtes par minute (RPM).
+* Budget Identity : uniquement un plafond de requêtes par minute, sans plafond financier individuel.
+* Aucun plafond de tokens à exposer dans le périmètre actuel.
 
-Implémente l’intégration API/frontend des Identities et le raccordement transactionnel enqueue/outbox/Dispatcher nécessaire au Workflow Identity V1.
+Privilégier les mécanismes natifs Orq : limits.amount, limits.period et rate_limit.requests_per_minute.
 
-Points de vigilance :
+Les deux niveaux doivent s’appliquer simultanément. Tenir compte du caractère global des Identities et empêcher les modifications de limites globales par un Project Manager non habilité.
 
-* Réutiliser les utilisateurs et Product Access existants du LMC.
-* Distinguer permission de provisioning et éligibilité utilisateur.
-* Exposer PLAN/APPLY avec les garanties déjà définies, en présentant le PLAN local comme prévisionnel.
-* Réutiliser la section Orq et le suivi de progression existants, sans multiplier les boutons ni reconstruire une interface parallèle.
-* Afficher les résultats individuels et agrégés, notamment les succès partiels et les incertitudes.
-* Préparer l’orchestration globale via un seul bouton, sans modifier le Workflow projet V2 déjà qualifié.
-* Conserver Repair comme outil résiduel de diagnostic/support.
+Vérifier ultérieurement les contrats API, les permissions, l’attribution runtime des requêtes et les capacités de notre instance Orq.
 
-Qualifie les permissions, la concurrence, la livraison Temporal simulée, les contrats API, le build frontend et la non-régression.
+Documente cette décision dans project-memory et adapte la roadmap Budgets.
 
-Les capacités fournisseur non démontrées restent désactivées.
-
-Toutes nos règles permanentes restent applicables. Réutilise le runbook, documente et actualise la mémoire projet.
-
-Aucun appel distant. Ne commence pas ID-Q.
+Ne commence pas son implémentation maintenant. Poursuis la mission Identity en cours.
