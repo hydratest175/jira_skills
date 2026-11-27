@@ -1,15 +1,21 @@
-Je valide ton plan et l’explication du premier UNKNOWN_OUTCOME.
+Avant toute nouvelle tentative, identifie précisément la cause des deux échecs de connexion.
 
-Prépare l’environnement isolé pour notre premier provisioning Orq réel depuis la référence lcc-c8-secure-standard-launch.
+Notre Mock LMC communiquait déjà avec Orq. Inspecte son implémentation et sa configuration réseau pour comprendre les différences avec notre gateway actuelle.
 
-Je valide le nom de projet temporaire proposé. Conserve les anciennes qualifications et réutilise les procédures déjà validées.
+Compare notamment :
 
-Indique-moi précisément où renseigner la configuration Orq et la clé de management, sans exposer ni journaliser cette dernière. Vérifions ensemble l’environnement cible, le BL, la sensibilité et le nom canonique attendu.
+* Proxy et variables d’environnement.
+* Certificats CA et configuration TLS.
+* Client HTTP et paramètres de connexion.
+* Différences entre DevEnv et Dev Container.
+* Exceptions exactes des deux preflights, sans exposer de secrets.
 
-Prépare ensuite le preflight Orq en lecture seule.
+Je t’autorise à réaliser les diagnostics DNS, TCP, proxy et TLS nécessaires, uniquement vers les services déjà approuvés, sans transmettre la clé Orq.
 
-Après sa validation, nous autoriserons une seule exécution réelle depuis l’interface, sans retry mutatif automatique. En cas d’incertitude, arrête immédiatement la campagne.
+Réutilise autant que possible la solution fonctionnelle du Mock LMC plutôt que de développer un nouveau mécanisme.
 
-Je réaliserai le nettoyage manuel après collecte des preuves.
+Ne désactive aucune vérification TLS et ne contourne aucune restriction réseau.
 
-Ne répète pas les qualifications déjà acceptées. Actualise la mémoire projet et ne commence pas C9.
+Corrige le problème de manière ciblée, puis présente-moi sa cause exacte et la solution retenue avant un nouveau GET authentifié.
+
+Aucune mutation Orq, aucun démarrage de Worker ou Dispatcher. Évite les investigations redondantes.
