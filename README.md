@@ -1,21 +1,18 @@
-Les secrets précédemment exposés ont été renouvelés de mon côté.
+Je valide la qualification intégrée avec Temporal réel et Orq simulé.
 
-Je souhaite maintenant poursuivre notre qualification sans ouvrir un chantier de sécurité disproportionné.
+Avant de passer au premier provisioning Orq réel, explique brièvement la cause du premier UNKNOWN_OUTCOME et confirme que le problème ne remet pas en cause la qualification obtenue.
 
-Je t’autorise à apporter les modifications strictement nécessaires au Dockerfile et au générateur de configuration pour :
+Prépare ensuite le premier provisioning réel d’un projet Orq depuis le véritable LMC :
 
-* Utiliser les secrets BuildKit sans exposer les nouveaux credentials dans les logs, les couches Docker ou le cache.
-* Générer une configuration de qualification fake-only, sans clé Orq réelle.
-* Préserver notre procédure habituelle de lancement 02/03.
+* Confirme le workspace applicatif de référence.
+* Utilise un nouveau projet de test clairement identifiable.
+* Isole strictement les anciennes opérations et les données du fake-Orq.
+* Vérifie la configuration et les permissions Orq nécessaires.
+* Prépare la traçabilité et le nettoyage manuel des ressources créées.
+* Conserve notre procédure habituelle de lancement.
 
-Isole cette correction du développement fonctionnel Orq. Documente les éventuelles améliorations de sécurité restantes dans une future MR dédiée.
+Réutilise les qualifications existantes sans les répéter inutilement.
 
-Vérifie également le périmètre résiduel d’exposition des anciens secrets et propose un nettoyage ciblé, sans supprimer de cache global ni de ressources existantes.
+Donne-moi uniquement les prérequis, les interventions nécessaires de ma part et les critères de réussite.
 
-Termine ensuite le lancement standard du LMC, vérifie le bon fonctionnement de la pile et prépare notre provisioning intégré avec Temporal réel et Orq simulé.
-
-Lorsque tout est prêt, donne-moi les commandes pour établir le tunnel Temporal.
-
-Toutes nos contraintes permanentes restent applicables. Actualise la documentation et la mémoire projet.
-
-Évite les investigations redondantes : notre priorité est désormais d’avancer sur l’implémentation fonctionnelle complète.
+Aucune mutation Orq réelle avant mon autorisation. Ne commence pas C9.
