@@ -1,15 +1,21 @@
-Je souhaite uniquement qualifier le parcours Orq dans la modale Repair existante.
+Je valide C8 sur le périmètre fonctionnel retenu. Nous continuons dans cette même session.
 
-Prépare une opération synthétique avec un état support_needed dans notre environnement temporaire actuel, sans modifier l’opération nominale déjà validée.
+Passons à la qualification du lancement standard du véritable LMC, avant notre premier provisioning intégré.
 
-Guide-moi pour tester le Repair depuis l’interface : affichage de la section Orq, diagnostic, informations disponibles et actions proposées.
+Prépare un plan opérationnel pour :
 
-Vérifie que le comportement est cohérent avec le Repair historique des autres composants.
+* Réutiliser ou nettoyer la pile temporaire actuelle.
+* Qualifier le pont Alembic et PostgreSQL 18.4.
+* Vérifier le schéma SpiceDB.
+* Conserver notre procédure habituelle de lancement du LMC.
+* Configurer le Worker et le Dispatcher sur la même Task Queue dédiée.
+* Réutiliser notre connexion Temporal préproduction.
+* Réaliser un provisioning depuis l’interface avec Orq simulé.
 
-Aucun appel réel Temporal ou Orq.
+Vérifie particulièrement que l’activation du Dispatcher ne risque pas de traiter accidentellement les anciennes opérations PENDING.
 
-Si tu identifies un problème, corrige-le et requalifie le périmètre concerné.
+Réutilise les procédures déjà qualifiées et la mémoire projet. Toutes nos contraintes permanentes restent applicables.
 
-Nous reportons les vérifications responsive et accessibilité. Documente cette décision, actualise le bilan C8 et la mémoire projet.
+Ne commence pas C9 concernant la résolution privilégiée UNKNOWN_OUTCOME.
 
-Ne commence pas l’étape suivante.
+Donne-moi le plan minimal, les éventuels blocages et les interventions nécessaires de ma part. Attends mon accord avant toute exécution distante ou modification d’environnement.
