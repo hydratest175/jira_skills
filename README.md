@@ -1,23 +1,15 @@
-Je valide ID-7 sur son périmètre local.
+Je valide ID-Q1 sur son périmètre simulé.
 
-Passe à ID-Q, première phase : qualification intégrée depuis le véritable LMC avec Orq simulé et Temporal préproduction réel.
+Prépare ID-Q2 : qualification contractuelle puis réelle des Identities et clés temporaires dans Orq.
 
-Réutilise LOCAL_IDENTITY_INTEGRATED_PREPARATION.md et nos procédures de qualification précédentes.
+* Confirme la cause et le comportement attendu du scénario C LOCAL_PERSISTENCE, ainsi que les preuves PLAN et Product Access d’ID-Q1.
+* Vérifie les contrats fournisseur encore ouverts en exploitant prioritairement le Mock LMC et les références Orq disponibles.
+* Réutilise notre configuration TLS qualifiée et notre procédure de lancement sécurisé.
+* Prépare un environnement isolé avec deux projets et des utilisateurs synthétiques, dont un utilisateur commun et un utilisateur sans Product Access Engineering Companion.
+* Prévois la vérification des trois champs Identity, de la réutilisation inter-projets, de l’absence de doublons et du nettoyage des clés temporaires.
 
-Je t’autorise à préparer et lancer la pile locale isolée PostgreSQL 18.4/Alembic 0005. Prépare également le preflight Temporal read-only sur le tunnel que j’ouvrirai manuellement. Attends mon autorisation avant de lancer les Workflows synthétiques distants.
+Présente les garanties confirmées, les éventuels blocages et le protocole minimal de qualification réelle, y compris le nettoyage ciblé des ressources créées.
 
-Je souhaite effectuer depuis le frontend :
+Aucun appel distant ni mutation sans mon autorisation explicite. Préserve les preuves ID-Q1 et actualise la mémoire projet.
 
-* Création d’un projet et ajout d’utilisateurs avec différents Product Access.
-* PLAN sans mutation.
-* APPLY unique avec enchaînement automatique projet → Identities.
-* Vérification de la progression et des trois champs Identity.
-* Réutilisation d’une Identity entre deux projets.
-
-Qualifie également la récupération après interruption, les succès partiels et le nettoyage des clés temporaires.
-
-Utilise exclusivement des données synthétiques pour les échanges de qualification. Aucun appel Orq réel.
-
-Guide-moi pour les manipulations nécessaires. Préserve nos environnements historiques et notre procédure habituelle de lancement.
-
-Documente les résultats et actualise la mémoire projet. Ne commence ni la qualification Orq réelle, ni les Budgets, ni C9.
+Ne commence ni les Budgets ni C9.
