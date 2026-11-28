@@ -1,11 +1,15 @@
-Je valide la préparation ID-Q2.
+Nous avons déjà réussi à communiquer avec Orq lors de la qualification réelle du projet C8.
 
-Je t’autorise à exécuter le preflight Orq réel, strictement limité aux trois GET proposés, sur la cible préproduction déjà approuvée.
+Retrouve et réutilise la configuration réseau exacte de cette qualification : connexion directe, CA système explicite et configuration HTTPX/TLS validée.
 
-Réutilise notre configuration TLS qualifiée et la saisie sécurisée de la clé. Aucun secret ni donnée utilisateur brute dans les preuves.
+Compare également avec le Mock LMC fonctionnel.
 
-Adapte ensuite localement les gateways aux contrats effectivement observés, sans extrapoler les garanties non démontrées. Qualifie les corrections et vérifie la non-régression.
+Identifie pourquoi la résolution DNS échoue actuellement dans le Dev Container. Vérifie notamment la configuration DNS, le VPN, les variables proxy et les différences d’environnement.
 
-Présente-moi les résultats et le protocole minimal de qualification mutative.
+Ne modifie pas les gateways métier pour résoudre un problème d’environnement. Ne désactive aucune protection TLS.
 
-Aucun POST, PATCH ou DELETE sans nouvelle autorisation. Actualise la mémoire projet. Ne commence ni les Budgets ni C9.
+Une fois la connectivité rétablie, je t’autorise à rejouer uniquement les trois GET du preflight ID-Q2.
+
+Documente la cause racine et la solution dans le runbook pour éviter de rencontrer à nouveau ce problème lors des prochaines qualifications.
+
+Aucune mutation Orq distante.
