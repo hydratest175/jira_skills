@@ -1,16 +1,11 @@
-Le problème réseau est résolu.
+Je valide la séparation Management Key / Product API Key conformément au Mock LMC.
 
-Avant de me demander une nouvelle clé, analyse précisément le mécanisme d’authentification du Mock LMC pour les Identities et les API keys.
+Vérifie les capacités et permissions de notre Management Key, ainsi que les contrats API réels. Adapte et qualifie les gateways si nécessaire.
 
-Compare avec ID-Q2 :
+Si tous les prérequis sont satisfaits, je t’autorise à exécuter directement la qualification réelle du cycle de vie d’une Product API Key temporaire : création avec permissions Identity minimales, expiration courte si disponible, utilisation pour les lectures Identity, suppression ciblée et vérification du nettoyage.
 
-* Type de clé utilisée : management ou product.
-* Permissions, scopes et périmètre.
-* Headers, endpoints et méthode d’authentification.
-* Cycle de création et d’utilisation des clés temporaires.
+Ne sollicite pas de validation intermédiaire si tout est conforme. En revanche, arrête-toi et reviens vers moi en cas de blocage, d’incertitude sur les permissions, de mutation ambiguë ou de nettoyage impossible.
 
-Identifie la cause probable du 403 et indique-moi exactement quelle clé et quelles permissions sont nécessaires dans Orq.
+Utilise uniquement la préproduction approuvée et les mécanismes sécurisés existants. Aucune mutation d’Identity réelle à ce stade, aucun secret exposé ni retry mutatif aveugle.
 
-Réutilise le fonctionnement déjà éprouvé du Mock lorsqu’il est compatible avec notre architecture actuelle.
-
-Ne lis ni n’affiche les valeurs des secrets. Aucun nouvel appel distant ni changement de permissions pour l’instant.
+Teste, documente et actualise la mémoire projet. Ne commence ni les Budgets ni C9.
