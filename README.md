@@ -1,15 +1,16 @@
-Nous avons déjà réussi à communiquer avec Orq lors de la qualification réelle du projet C8.
+Le problème réseau est résolu.
 
-Retrouve et réutilise la configuration réseau exacte de cette qualification : connexion directe, CA système explicite et configuration HTTPX/TLS validée.
+Avant de me demander une nouvelle clé, analyse précisément le mécanisme d’authentification du Mock LMC pour les Identities et les API keys.
 
-Compare également avec le Mock LMC fonctionnel.
+Compare avec ID-Q2 :
 
-Identifie pourquoi la résolution DNS échoue actuellement dans le Dev Container. Vérifie notamment la configuration DNS, le VPN, les variables proxy et les différences d’environnement.
+* Type de clé utilisée : management ou product.
+* Permissions, scopes et périmètre.
+* Headers, endpoints et méthode d’authentification.
+* Cycle de création et d’utilisation des clés temporaires.
 
-Ne modifie pas les gateways métier pour résoudre un problème d’environnement. Ne désactive aucune protection TLS.
+Identifie la cause probable du 403 et indique-moi exactement quelle clé et quelles permissions sont nécessaires dans Orq.
 
-Une fois la connectivité rétablie, je t’autorise à rejouer uniquement les trois GET du preflight ID-Q2.
+Réutilise le fonctionnement déjà éprouvé du Mock lorsqu’il est compatible avec notre architecture actuelle.
 
-Documente la cause racine et la solution dans le runbook pour éviter de rencontrer à nouveau ce problème lors des prochaines qualifications.
-
-Aucune mutation Orq distante.
+Ne lis ni n’affiche les valeurs des secrets. Aucun nouvel appel distant ni changement de permissions pour l’instant.
