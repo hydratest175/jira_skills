@@ -1,15 +1,11 @@
-Je valide ID-Q1 sur son périmètre simulé.
+Je valide la préparation ID-Q2.
 
-Prépare ID-Q2 : qualification contractuelle puis réelle des Identities et clés temporaires dans Orq.
+Je t’autorise à exécuter le preflight Orq réel, strictement limité aux trois GET proposés, sur la cible préproduction déjà approuvée.
 
-* Confirme la cause et le comportement attendu du scénario C LOCAL_PERSISTENCE, ainsi que les preuves PLAN et Product Access d’ID-Q1.
-* Vérifie les contrats fournisseur encore ouverts en exploitant prioritairement le Mock LMC et les références Orq disponibles.
-* Réutilise notre configuration TLS qualifiée et notre procédure de lancement sécurisé.
-* Prépare un environnement isolé avec deux projets et des utilisateurs synthétiques, dont un utilisateur commun et un utilisateur sans Product Access Engineering Companion.
-* Prévois la vérification des trois champs Identity, de la réutilisation inter-projets, de l’absence de doublons et du nettoyage des clés temporaires.
+Réutilise notre configuration TLS qualifiée et la saisie sécurisée de la clé. Aucun secret ni donnée utilisateur brute dans les preuves.
 
-Présente les garanties confirmées, les éventuels blocages et le protocole minimal de qualification réelle, y compris le nettoyage ciblé des ressources créées.
+Adapte ensuite localement les gateways aux contrats effectivement observés, sans extrapoler les garanties non démontrées. Qualifie les corrections et vérifie la non-régression.
 
-Aucun appel distant ni mutation sans mon autorisation explicite. Préserve les preuves ID-Q1 et actualise la mémoire projet.
+Présente-moi les résultats et le protocole minimal de qualification mutative.
 
-Ne commence ni les Budgets ni C9.
+Aucun POST, PATCH ou DELETE sans nouvelle autorisation. Actualise la mémoire projet. Ne commence ni les Budgets ni C9.
